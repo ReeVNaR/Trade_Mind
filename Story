@@ -1,0 +1,100 @@
+Phase 1 - Project Setup
+Folder Structure
+
+Create a folder named:
+
+TradeMind-AI
+
+Inside it:
+
+TradeMind-AI/
+
+├── app/
+│   ├── data/
+│   ├── strategies/
+│   ├── indicators/
+│   ├── telegram/
+│   ├── portfolio/
+│   ├── ai/
+│   ├── database/
+│   ├── utils/
+│   └── scheduler/
+│
+├── tests/
+│
+├── logs/
+│
+├── .env
+├── requirements.txt
+├── main.py
+└── README.md
+Step 2 - Install Python
+
+Check your Python version:
+
+python --version
+
+or
+
+python3 --version
+
+You should have Python 3.11 or newer.
+
+Step 3 - Create a Virtual Environment
+
+Windows:
+
+python -m venv venv
+
+Activate it:
+
+venv\Scripts\activate
+
+You should see:
+
+(venv)
+
+at the start of your terminal prompt.
+
+Step 4 - Install Dependencies
+
+Create a requirements.txt with:
+
+fastapi
+uvicorn
+requests
+pandas
+numpy
+pandas-ta
+python-telegram-bot
+python-dotenv
+sqlalchemy
+yfinance
+schedule
+
+Then install:
+
+pip install -r requirements.txt
+Step 5 - Create .env
+TELEGRAM_TOKEN=
+CHAT_ID=
+
+GEMINI_API_KEY=
+
+INITIAL_BALANCE=2000
+
+We'll fill these values later.
+
+Step 6 - Verify Setup
+
+Create main.py:
+
+print("TradeMind AI Started Successfully 🚀")
+
+Run:
+
+python main.py
+
+Output:
+
+TradeMind AI Started Successfully 🚀
