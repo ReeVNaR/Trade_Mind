@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+requests
+pandas
+numpy
+python-telegram-bot
+python-dotenv
+sqlalchemy
+psycopg2-binary
+yfinance
+schedule
+google-generativeai
+pydantic
+pydantic-settings
+httpx
+pytest

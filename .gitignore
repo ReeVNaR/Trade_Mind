@@ -1,0 +1,50 @@
+# Environment & Secrets (NEVER COMMIT SENSITIVE KEYS)
+.env
+.env*.local
+.env.production
+.env.staging
+!.env.example
+
+# SQLite Database & Storage
+*.db
+*.sqlite
+*.sqlite3
+trademind.db
+
+# Logs
+logs/
+*.log
+
+# Python Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE & OS Artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build & Distribution
+build/
+dist/
+*.egg-info/
