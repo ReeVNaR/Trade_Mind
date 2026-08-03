@@ -14,17 +14,29 @@ services:
       - key: API_HOST
         value: 0.0.0.0
       - key: INITIAL_BALANCE
-        value: "2000.0"
+        value: "30000.0"
       - key: MAX_POSITION_SIZE_RATIO
-        value: "0.20"
+        value: "0.35"
       - key: STOP_LOSS_PERCENT
         value: "0.015"
       - key: TAKE_PROFIT_PERCENT
         value: "0.035"
+      - key: MAX_DAILY_TRADES
+        value: "4"
+      - key: MAX_DAILY_LOSS
+        value: "2000.0"
+      - key: MAX_DAILY_PROFIT
+        value: "4000.0"
+      - key: NIFTY_LOT_SIZE
+        value: "65"
+      - key: NIFTY_STRIKE_STEP
+        value: "50"
+      - key: OPTION_STRIKE_TYPE
+        value: "ITM"
       - key: SCAN_INTERVAL_MINUTES
         value: "15"
       - key: DEFAULT_SYMBOLS
-        value: "RELIANCE.NS,TCS.NS,INFY.NS,HDFCBANK.NS,ICICIBANK.NS,SBIN.NS,BHARTIARTL.NS,ITC.NS,LT.NS,M&M.NS,MARUTI.NS,KOTAKBANK.NS,AXISBANK.NS,BAJFINANCE.NS,ASIANPAINT.NS,WIPRO.NS,^NSEI,^NSEBANK"
+        value: "^NSEI"
       - key: TELEGRAM_TOKEN
         sync: false
       - key: CHAT_ID

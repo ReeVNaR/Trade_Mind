@@ -70,6 +70,20 @@ class PortfolioEngine:
         db: Session = SessionLocal()
         try:
             latest_snapshot = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.id.desc()).first()
+            if not latest_snapshot:
+                latest_snapshot = PortfolioSnapshot(
+                    cash_balance=settings.INITIAL_BALANCE,
+                    equity=settings.INITIAL_BALANCE,
+                    open_positions_count=0,
+                    total_realized_pnl=0.0
+                )
+                db.add(latest_snapshot)
+                db.commit()
+            elif db.query(Position).count() == 0 and latest_snapshot.cash_balance < settings.INITIAL_BALANCE and (latest_snapshot.total_realized_pnl or 0.0) == 0.0:
+                latest_snapshot.cash_balance = settings.INITIAL_BALANCE
+                latest_snapshot.equity = settings.INITIAL_BALANCE
+                db.commit()
+
             cash_balance = latest_snapshot.cash_balance if latest_snapshot else settings.INITIAL_BALANCE
             realized_pnl = latest_snapshot.total_realized_pnl if latest_snapshot else 0.0
 
