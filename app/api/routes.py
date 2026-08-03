@@ -484,78 +484,109 @@ def get_dashboard():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradeMind AI 🇮🇳 | NIFTY 50 Futures & Options (F&O)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>TradeMind AI 🇮🇳 | NIFTY 50 Futures & Options (F&O) Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #060911;
+            --bg: #070b14;
             --card-bg: rgba(15, 23, 42, 0.85);
             --card-border: rgba(255, 255, 255, 0.08);
+            --card-hover: rgba(30, 41, 59, 0.95);
             --accent-saffron: #ff9933;
             --accent-green: #10b981;
             --accent-cyan: #38bdf8;
+            --accent-amber: #f59e0b;
+            --accent-purple: #a855f7;
             --text-primary: #f8fafc;
             --text-muted: #94a3b8;
             --bull: #10b981;
             --bear: #f43f5e;
             --highlight: #6366f1;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
-        body { background: var(--bg); color: var(--text-primary); min-height: 100vh; padding: 20px; }
-        .container { max-width: 1440px; margin: 0 auto; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: var(--bg); color: var(--text-primary); min-height: 100vh; padding: 24px 20px; background-image: radial-gradient(circle at 10% 10%, rgba(255, 153, 51, 0.04) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 40%); }
+        .container { max-width: 1480px; margin: 0 auto; }
         
         /* Header */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 14px; }
-        .logo-group { display: flex; align-items: center; gap: 12px; }
-        .logo-title { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #ff9933 0%, #ffffff 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .badge { background: rgba(255, 153, 51, 0.12); color: var(--accent-saffron); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid rgba(255, 153, 51, 0.3); }
-        .badge-live { background: rgba(16, 185, 129, 0.15); color: var(--bull); border: 1px solid rgba(16, 185, 129, 0.3); }
-        .badge-tsl { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 16px; }
+        .logo-group { display: flex; align-items: center; gap: 14px; }
+        .logo-badge { font-size: 32px; filter: drop-shadow(0 2px 8px rgba(255, 153, 51, 0.3)); }
+        .logo-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg, #ff9933 0%, #ffffff 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .logo-sub { font-size: 12px; color: var(--text-muted); font-weight: 500; }
         
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.05); }
+        .badge-live { background: rgba(16, 185, 129, 0.15); color: var(--bull); border-color: rgba(16, 185, 129, 0.35); box-shadow: 0 0 12px rgba(16, 185, 129, 0.2); }
+        .badge-circuit { background: rgba(255, 153, 51, 0.15); color: var(--accent-saffron); border-color: rgba(255, 153, 51, 0.35); }
+        .badge-halt { background: rgba(244, 63, 94, 0.15); color: var(--bear); border-color: rgba(244, 63, 94, 0.35); animation: pulseHalt 2s infinite; }
+        .badge-subs { background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.3); cursor: pointer; transition: all 0.2s ease; }
+        .badge-subs:hover { background: rgba(56, 189, 248, 0.2); transform: translateY(-1px); }
+        .badge-tsl { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 2px 7px; border-radius: 4px; }
+        
+        @keyframes pulseHalt {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.65; }
+        }
+
         .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        button { background: linear-gradient(135deg, #ff9933, #e67e22); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(255, 153, 51, 0.25); display: inline-flex; align-items: center; gap: 6px; }
-        button:hover { opacity: 0.92; transform: translateY(-1px); }
-        button.secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); box-shadow: none; }
+        button { background: linear-gradient(135deg, #ff9933, #e67e22); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(255, 153, 51, 0.25); display: inline-flex; align-items: center; gap: 7px; }
+        button:hover { opacity: 0.94; transform: translateY(-1px); }
+        button.secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); box-shadow: none; color: var(--text-primary); }
         button.secondary:hover { background: rgba(255,255,255,0.12); }
+        button.danger-btn { background: linear-gradient(135deg, #e11d48, #be123c); box-shadow: 0 4px 14px rgba(225, 29, 72, 0.25); }
         button.bull-btn { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25); }
         button.bear-btn { background: linear-gradient(135deg, #f43f5e, #e11d48); box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25); }
         button.cyan-btn { background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25); }
+        button.purple-btn { background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 4px 14px rgba(139, 92, 246, 0.25); }
+
+        /* Expiry Alert Banner */
+        .expiry-banner { display: none; background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15)); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; align-items: center; justify-content: space-between; gap: 12px; }
+        .expiry-banner.active { display: flex; animation: fadeIn 0.3s ease; }
+        .expiry-banner-text { font-size: 13px; color: #fde68a; font-weight: 500; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         /* KPI Banner */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
-        .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; backdrop-filter: blur(12px); }
-        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; }
-        .stat-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px; backdrop-filter: blur(14px); transition: all 0.2s ease; }
+        .stat-card:hover { border-color: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.6px; margin-bottom: 6px; }
+        .stat-value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
         .positive { color: var(--bull); }
         .negative { color: var(--bear); }
         
         /* Daily Circuit & Risk Bar */
-        .circuit-strip { background: linear-gradient(90deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95)); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: center; }
+        .circuit-strip { background: linear-gradient(90deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95)); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: center; }
         .circuit-item { display: flex; flex-direction: column; }
-        .circuit-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-        .circuit-val { font-size: 16px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .circuit-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .circuit-val { font-size: 17px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
         /* Progress Bar */
         .progress-bar-container { grid-column: 1 / -1; margin-top: 8px; }
         .progress-bar-track { height: 10px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; position: relative; }
-        .progress-bar-fill { height: 100%; transition: width 0.4s ease; border-radius: 999px; }
+        .progress-bar-fill { height: 100%; transition: width 0.5s ease; border-radius: 999px; }
 
-        /* Grid Layout */
+        /* Main Grid */
         .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
-        @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1080px) { .main-grid { grid-template-columns: 1fr; } }
         
-        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 20px; backdrop-filter: blur(12px); margin-bottom: 20px; }
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 20px; backdrop-filter: blur(14px); margin-bottom: 20px; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; }
         .card-title { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
         
         /* NIFTY F&O Scanner Card */
         .fno-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
         @media (max-width: 768px) { .fno-grid { grid-template-columns: 1fr; } }
-        .fno-box { border-radius: 12px; padding: 16px; border: 1px solid var(--card-border); }
-        .fno-box.call { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); }
-        .fno-box.put { background: rgba(244, 63, 94, 0.08); border-color: rgba(244, 63, 94, 0.25); }
-        .fno-box-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .fno-detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: var(--text-muted); }
+        .fno-box { border-radius: 12px; padding: 18px; border: 1px solid var(--card-border); transition: all 0.2s ease; }
+        .fno-box.call { background: rgba(16, 185, 129, 0.06); border-color: rgba(16, 185, 129, 0.25); }
+        .fno-box.call:hover { border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.09); }
+        .fno-box.put { background: rgba(244, 63, 94, 0.06); border-color: rgba(244, 63, 94, 0.25); }
+        .fno-box.put:hover { border-color: rgba(244, 63, 94, 0.45); background: rgba(244, 63, 94, 0.09); }
+        .fno-box-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .fno-detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: var(--text-muted); }
         .fno-detail-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
 
         /* Checklist */
@@ -569,9 +600,17 @@ def get_dashboard():
         th { text-align: left; padding: 12px 10px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--card-border); }
         td { padding: 12px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); font-family: 'JetBrains Mono', monospace; }
         tr:hover { background: rgba(255, 255, 255, 0.02); }
-        .mono { font-family: 'JetBrains Mono', monospace; }
         .win-badge { background: rgba(16, 185, 129, 0.15); color: var(--bull); padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
         .loss-badge { background: rgba(244, 63, 94, 0.15); color: var(--bear); padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 24px; max-width: 480px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .modal-body { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        textarea.modal-input { width: 100%; height: 100px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; color: var(--text-primary); font-size: 13px; margin: 12px 0; resize: vertical; }
     </style>
 </head>
 <body>
@@ -579,42 +618,62 @@ def get_dashboard():
         <!-- Header -->
         <header>
             <div class="logo-group">
-                <span style="font-size: 32px;">🇮🇳</span>
+                <span class="logo-badge">🇮🇳</span>
                 <div>
                     <h1 class="logo-title">TradeMind AI</h1>
-                    <p style="font-size: 12px; color: var(--text-muted);">NIFTY 50 Futures & Options (F&O) • In-The-Money (ITM) Engine</p>
+                    <p class="logo-sub">NIFTY 50 Futures & Options (F&O) Terminal • August 2026 Standards (65 Lot Size • Tuesday Expiry)</p>
                 </div>
             </div>
             <div class="header-actions">
                 <span class="badge badge-live" id="market-status-badge">🟢 NSE LIVE</span>
-                <span class="badge" id="circuit-badge">🛡️ CIRCUIT: ACTIVE</span>
-                <span class="badge" id="telegram-subscribers-badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3);">👥 0 Bot Users</span>
+                <span class="badge" id="clock-badge">⏰ IST: Loading...</span>
+                <span class="badge badge-circuit" id="circuit-badge">🛡️ CIRCUIT: ACTIVE</span>
+                <span class="badge badge-subs" id="telegram-subscribers-badge" onclick="openBroadcastModal()">👥 0 Bot Users</span>
                 <button class="secondary" onclick="refreshDashboard()">🔄 Refresh</button>
                 <button class="cyan-btn" onclick="triggerScan()">⚡ Scan NIFTY</button>
+                <button class="purple-btn" onclick="openBroadcastModal()">📢 Broadcast</button>
+                <button class="danger-btn" onclick="openResetModal()">🔁 Reset Portfolio</button>
             </div>
         </header>
+
+        <!-- Expiry Cutoff Banner (Displayed on Expiry Day after 2:00 PM IST) -->
+        <div class="expiry-banner" id="expiry-banner">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">⏳</span>
+                <div>
+                    <b style="color: #fbbf24; font-size: 14px;">NIFTY EXPIRES TODAY (TUESDAY) — POST-2:00 PM CUTOFF ACTIVE</b>
+                    <div class="expiry-banner-text">No new buy entries permitted after 2:00 PM IST to protect capital from rapid theta decay and extreme gamma volatility. Existing positions are protected by active trailing stop-loss.</div>
+                </div>
+            </div>
+            <span class="badge badge-halt">HALTED (POST 2PM)</span>
+        </div>
 
         <!-- KPI Banner -->
         <div class="kpi-grid">
             <div class="stat-card">
                 <div class="stat-label">Virtual Capital</div>
                 <div class="stat-value" id="kpi-equity">₹30,000.00</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Initial: <span id="kpi-initial">₹30,000.00</span></div>
+                <div class="stat-sub">Starting Baseline: <span id="kpi-initial">₹30,000.00</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Available Liquid Cash</div>
                 <div class="stat-value" id="kpi-cash">₹30,000.00</div>
-                <div style="font-size: 11px; color: var(--accent-cyan); margin-top: 4px;">35% Max Margin/Trade</div>
+                <div class="stat-sub" style="color: var(--accent-cyan);">35% Safe Margin / Trade (~₹10,500)</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Today's Net Realized PnL</div>
                 <div class="stat-value" id="kpi-today-pnl">₹0.00</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Floor: -₹2,000 | Target: +₹4,000</div>
+                <div class="stat-sub">Floor: <span class="negative">-₹2,000</span> | Target: <span class="positive">+₹4,000</span></div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Lifetime Return</div>
+                <div class="stat-label">Lifetime Return & Win Rate</div>
                 <div class="stat-value" id="kpi-return">+0.00%</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Win Rate: <span id="kpi-winrate">0.0%</span></div>
+                <div class="stat-sub">Win Rate: <span id="kpi-winrate" style="font-weight: 700; color: var(--bull);">0.0%</span> • PF: <span id="hist-pf">1.00</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">NIFTY Contract Standard</div>
+                <div class="stat-value" style="color: var(--accent-saffron); font-size: 20px;">65 Units / Lot</div>
+                <div class="stat-sub">Expiry: <b id="kpi-expiry-day" style="color: var(--text-primary);">Tuesday</b> • 50-pt Step</div>
             </div>
         </div>
 
@@ -638,12 +697,12 @@ def get_dashboard():
             </div>
             <div class="progress-bar-container">
                 <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
-                    <span>-₹2,000 (Max Loss Halt)</span>
+                    <span>-₹2,000 (Max Loss Circuit)</span>
                     <span id="cir-progress-label">₹0.00 Today's PnL</span>
                     <span>+₹4,000 (Profit Target Lock)</span>
                 </div>
                 <div class="progress-bar-track">
-                    <div class="progress-bar-fill" id="cir-progress-fill" style="width: 33%; background: var(--accent-cyan);"></div>
+                    <div class="progress-bar-fill" id="cir-progress-fill" style="width: 33.3%; background: var(--accent-cyan);"></div>
                 </div>
             </div>
         </div>
@@ -657,9 +716,10 @@ def get_dashboard():
                         <div class="card-title">
                             <span>🎯</span> NIFTY 50 In-The-Money (ITM) Options Scanner
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span class="badge" id="nifty-spot-badge">Spot: ₹24,950.00</span>
-                            <span class="badge" id="nifty-lot-badge">Lot: 25 Units</span>
+                            <span class="badge badge-tsl" id="nifty-lot-badge">📦 65 Units / Lot</span>
+                            <span class="badge badge-tsl" id="nifty-expiry-badge">📅 Tuesday Expiry</span>
                         </div>
                     </div>
                     
@@ -676,21 +736,21 @@ def get_dashboard():
                             </div>
                             <div class="fno-detail-row">
                                 <span>Contract:</span>
-                                <span class="fno-detail-val" id="call-contract">NIFTY 24850 CE</span>
+                                <span class="fno-detail-val" id="call-contract">NIFTY 24900 CE</span>
                             </div>
                             <div class="fno-detail-row">
                                 <span>Est. Premium:</span>
                                 <span class="fno-detail-val" id="call-premium">₹220.00</span>
                             </div>
                             <div class="fno-detail-row">
-                                <span>1-Lot Margin (25 Qty):</span>
-                                <span class="fno-detail-val" id="call-lot-cost">₹5,500.00</span>
+                                <span>1-Lot Margin (<span class="lot-qty-span">65</span> Qty):</span>
+                                <span class="fno-detail-val" id="call-lot-cost">₹14,300.00</span>
                             </div>
                             <div class="fno-detail-row">
                                 <span>Target (+35%) / SL (-15%):</span>
                                 <span class="fno-detail-val" id="call-tp-sl">₹297.00 / ₹187.00</span>
                             </div>
-                            <button class="bull-btn" style="width: 100%; margin-top: 10px;" onclick="executeITMOrder('CE')">
+                            <button class="bull-btn" id="call-buy-btn" style="width: 100%; margin-top: 10px;" onclick="executeITMOrder('CE')">
                                 🚀 Paper Buy ITM Call (CE)
                             </button>
                         </div>
@@ -710,14 +770,14 @@ def get_dashboard():
                                 <span class="fno-detail-val" id="put-premium">₹215.00</span>
                             </div>
                             <div class="fno-detail-row">
-                                <span>1-Lot Margin (25 Qty):</span>
-                                <span class="fno-detail-val" id="put-lot-cost">₹5,375.00</span>
+                                <span>1-Lot Margin (<span class="lot-qty-span">65</span> Qty):</span>
+                                <span class="fno-detail-val" id="put-lot-cost">₹13,975.00</span>
                             </div>
                             <div class="fno-detail-row">
                                 <span>Target (+35%) / SL (-15%):</span>
                                 <span class="fno-detail-val" id="put-tp-sl">₹290.00 / ₹182.00</span>
                             </div>
-                            <button class="bear-btn" style="width: 100%; margin-top: 10px;" onclick="executeITMOrder('PE')">
+                            <button class="bear-btn" id="put-buy-btn" style="width: 100%; margin-top: 10px;" onclick="executeITMOrder('PE')">
                                 🛡️ Paper Buy ITM Put (PE)
                             </button>
                         </div>
@@ -728,7 +788,7 @@ def get_dashboard():
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">
-                            <span>📂</span> Active NIFTY F&O Positions & Dynamic TSL
+                            <span>📂</span> Active NIFTY F&O Positions & Dynamic Trailing SL
                         </div>
                         <span class="badge badge-tsl" id="pos-count-badge">0 Positions</span>
                     </div>
@@ -738,7 +798,7 @@ def get_dashboard():
                                 <tr>
                                     <th>Contract / Symbol</th>
                                     <th>Qty (Units)</th>
-                                    <th>Entry</th>
+                                    <th>Entry Price</th>
                                     <th>LTP</th>
                                     <th>Stop Loss / TSL</th>
                                     <th>Target</th>
@@ -748,7 +808,7 @@ def get_dashboard():
                             </thead>
                             <tbody id="positions-tbody">
                                 <tr>
-                                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">
                                         No active positions. Scanning NIFTY 50 for high-conviction ITM setups...
                                     </td>
                                 </tr>
@@ -764,7 +824,7 @@ def get_dashboard():
                             <span>📜</span> Lifetime Trade Book & Execution Audit
                         </div>
                         <div style="font-size: 12px; color: var(--text-muted);">
-                            Profit Factor: <b id="hist-pf" style="color: var(--accent-cyan);">1.00</b> | Best Trade: <b id="hist-best" style="color: var(--bull);">₹0.00</b>
+                            Best Trade: <b id="hist-best" style="color: var(--bull);">₹0.00</b>
                         </div>
                     </div>
                     <div style="overflow-x: auto;">
@@ -783,7 +843,7 @@ def get_dashboard():
                             </thead>
                             <tbody id="trades-tbody">
                                 <tr>
-                                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">
                                         No trade history recorded yet.
                                     </td>
                                 </tr>
@@ -793,7 +853,7 @@ def get_dashboard():
                 </div>
             </div>
 
-            <!-- Right Column: 6-Factor Confirmation Audit -->
+            <!-- Right Column: 6-Factor Confirmation Audit & Intraday Rules -->
             <div>
                 <div class="card">
                     <div class="card-header">
@@ -820,7 +880,7 @@ def get_dashboard():
                             <span class="badge badge-live">PASS</span>
                         </div>
                         <div class="chk-item pass">
-                            <span>5. RSI(14) Momentum Sweet-Spot</span>
+                            <span>5. RSI(14) Momentum Filter</span>
                             <span class="badge badge-live">PASS</span>
                         </div>
                         <div class="chk-item pass">
@@ -829,10 +889,10 @@ def get_dashboard():
                         </div>
                     </div>
 
-                    <div style="margin-top: 14px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--card-border);">
+                    <div style="margin-top: 14px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--card-border);">
                         <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">🧠 AI Reason Verdict</div>
-                        <div style="font-size: 13px; color: var(--text-primary); line-height: 1.4;" id="ai-verdict-text">
-                            NIFTY is in a strong uptrend above 200 EMA and VWAP. ITM Call options provide optimal delta and low theta decay.
+                        <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;" id="ai-verdict-text">
+                            NIFTY is in a confirmed uptrend above 200 EMA and VWAP. ITM Call options provide optimal delta and lower theta decay.
                         </div>
                     </div>
                 </div>
@@ -841,24 +901,69 @@ def get_dashboard():
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">
-                            <span>⚙️</span> Intraday Trading Rules
+                            <span>⚙️</span> Intraday Risk Circuit Rules
                         </div>
                     </div>
-                    <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                    <div style="font-size: 13px; color: var(--text-muted); line-height: 1.7;">
                         <p>• <b>Universe:</b> Strictly NIFTY 50 Index (F&O)</p>
-                        <p>• <b>Budget:</b> ₹30,000 INR (35% Max per trade)</p>
+                        <p>• <b>Contract Lot Size:</b> <b style="color: var(--text-primary);">65 Units</b> (NSE August 2026)</p>
+                        <p>• <b>Weekly Expiry:</b> <b style="color: var(--text-primary);">Every Tuesday</b> (15:30 IST)</p>
+                        <p>• <b>Expiry 2:00 PM Cutoff:</b> <b style="color: var(--accent-amber);">No new trades after 14:00 on Tuesdays</b></p>
+                        <p>• <b>Capital:</b> ₹30,000 INR (35% Max per trade)</p>
                         <p>• <b>Daily Quota:</b> 3 to 4 trades max per day</p>
-                        <p>• <b>Stop-Loss Circuit:</b> -₹2,000 (10% max loss)</p>
+                        <p>• <b>Stop-Loss Circuit:</b> -₹2,000 (10% max daily loss)</p>
                         <p>• <b>Profit Target Circuit:</b> +₹4,000 (+20% gain lock)</p>
-                        <p>• <b>Strike Selection:</b> In-The-Money (ITM) CE / PE</p>
+                        <p>• <b>Strike Selection:</b> In-The-Money (ITM) Delta ~0.70</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Portfolio Reset Modal -->
+    <div class="modal-overlay" id="reset-modal">
+        <div class="modal-box">
+            <div class="modal-title">
+                <span>🔁</span> Reset Paper Portfolio to ₹30,000
+            </div>
+            <div class="modal-body">
+                This will clear all open positions and historical paper trades, resetting your virtual cash balance to a pristine <b>₹30,000.00 INR</b> capital. Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button class="secondary" onclick="closeResetModal()">Cancel</button>
+                <button class="danger-btn" onclick="confirmResetPortfolio()">Confirm Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telegram Broadcast Modal -->
+    <div class="modal-overlay" id="broadcast-modal">
+        <div class="modal-box">
+            <div class="modal-title">
+                <span>📢</span> Broadcast to Telegram Bot Subscribers
+            </div>
+            <div class="modal-body">
+                Send an immediate notification message to all active subscribers who have started the Telegram bot:
+                <textarea class="modal-input" id="broadcast-message" placeholder="Type your broadcast announcement or market update here..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary" onclick="closeBroadcastModal()">Cancel</button>
+                <button class="purple-btn" onclick="confirmBroadcast()">Send Broadcast 🚀</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentFnoSetup = null;
+
+        function updateClock() {
+            const now = new Date();
+            const istString = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+            const clockEl = document.getElementById('clock-badge');
+            if (clockEl) clockEl.textContent = `⏰ ${istString} IST`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
 
         async function fetchJSON(url) {
             const res = await fetch(url);
@@ -870,9 +975,9 @@ def get_dashboard():
             try {
                 // 1. Fetch Portfolio Summary
                 const port = await fetchJSON('/api/portfolio');
-                document.getElementById('kpi-equity').textContent = `₹${port.total_equity.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                document.getElementById('kpi-initial').textContent = `₹${port.initial_balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                document.getElementById('kpi-cash').textContent = `₹${port.cash_balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                document.getElementById('kpi-equity').textContent = `₹${(port.total_equity || 30000).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                document.getElementById('kpi-initial').textContent = `₹${(port.initial_balance || 30000).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                document.getElementById('kpi-cash').textContent = `₹${(port.cash_balance || 30000).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
                 
                 const ret = port.total_return_percent || 0.0;
                 const retEl = document.getElementById('kpi-return');
@@ -887,9 +992,35 @@ def get_dashboard():
                 pnlEl.className = `stat-value ${todayPnl >= 0 ? 'positive' : 'negative'}`;
 
                 document.getElementById('cir-trades').textContent = `${risk.trades_today || 0} / ${risk.max_daily_trades || 4} Trades`;
-                document.getElementById('cir-status').textContent = risk.circuit_status || 'ACTIVE';
-                document.getElementById('circuit-badge').textContent = `🛡️ CIRCUIT: ${risk.circuit_status || 'ACTIVE'}`;
                 
+                // Circuit Status Badge
+                const cirStatus = risk.circuit_status || 'ACTIVE';
+                const cirEl = document.getElementById('cir-status');
+                const cirBadge = document.getElementById('circuit-badge');
+                
+                cirEl.textContent = cirStatus;
+                if (cirStatus === 'ACTIVE') {
+                    cirEl.style.color = 'var(--bull)';
+                    cirBadge.className = 'badge badge-circuit';
+                    cirBadge.textContent = '🛡️ CIRCUIT: ACTIVE';
+                } else if (cirStatus === 'HALTED_EXPIRY_AFTER_2PM') {
+                    cirEl.style.color = 'var(--accent-amber)';
+                    cirBadge.className = 'badge badge-halt';
+                    cirBadge.textContent = '⏳ CIRCUIT: EXPIRY POST-2PM HALT';
+                } else {
+                    cirEl.style.color = 'var(--bear)';
+                    cirBadge.className = 'badge badge-halt';
+                    cirBadge.textContent = `🛑 CIRCUIT: ${cirStatus}`;
+                }
+
+                // Check Expiry Cutoff Banner
+                const expiryBanner = document.getElementById('expiry-banner');
+                if (risk.is_expiry_cutoff || cirStatus === 'HALTED_EXPIRY_AFTER_2PM') {
+                    expiryBanner.classList.add('active');
+                } else {
+                    expiryBanner.classList.remove('active');
+                }
+
                 // Progress Bar: scale from -2000 (0%) to 0 (33.3%) to +4000 (100%)
                 const clamped = Math.max(-2000, Math.min(4000, todayPnl));
                 const pct = ((clamped + 2000) / 6000) * 100;
@@ -902,7 +1033,7 @@ def get_dashboard():
                 document.getElementById('pos-count-badge').textContent = `${positions.length} Positions`;
 
                 if (positions.length === 0) {
-                    posTbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No active positions. Scanning NIFTY 50 for high-conviction ITM setups...</td></tr>';
+                    posTbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No active positions. Scanning NIFTY 50 for high-conviction ITM setups...</td></tr>';
                 } else {
                     posTbody.innerHTML = positions.map(p => {
                         const pnl = p.unrealized_pnl || 0.0;
@@ -927,7 +1058,12 @@ def get_dashboard():
                 // 2. Fetch NIFTY F&O Setup
                 const fno = await fetchJSON('/api/nifty/fno-setup');
                 currentFnoSetup = fno;
+                const lotSize = fno.lot_size || 65;
+
                 document.getElementById('nifty-spot-badge').textContent = `Spot: ₹${fno.spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                document.getElementById('nifty-lot-badge').textContent = `📦 ${lotSize} Units / Lot`;
+                
+                document.querySelectorAll('.lot-qty-span').forEach(el => el.textContent = lotSize);
                 
                 // ITM Call
                 const call = fno.itm_call;
@@ -945,18 +1081,22 @@ def get_dashboard():
                 document.getElementById('put-delta-badge').textContent = `Δ ~${put.estimated_delta}`;
                 document.getElementById('put-tp-sl').textContent = `₹${(put.estimated_premium * 1.35).toFixed(2)} / ₹${(put.estimated_premium * 0.85).toFixed(2)}`;
 
+                if (call.expiry_display) {
+                    document.getElementById('nifty-expiry-badge').textContent = `📅 ${call.expiry_display}`;
+                }
+
                 document.getElementById('nifty-signal-text').innerHTML = `Signal: <b>${fno.signal}</b> (${fno.signal_confidence}% Conviction) | Reason: <i>${fno.signal_reason || 'Algorithmic Confluence'}</i>`;
 
                 // 3. Fetch Trade History
                 const hist = await fetchJSON('/api/trades/history');
-                document.getElementById('kpi-winrate').textContent = `${hist.win_rate_percent || 0.0}%`;
+                document.getElementById('kpi-winrate').textContent = `${(hist.win_rate_percent || 0.0).toFixed(1)}%`;
                 document.getElementById('hist-pf').textContent = (hist.profit_factor || 1.0).toFixed(2);
                 document.getElementById('hist-best').textContent = `₹${(hist.best_trade || 0.0).toFixed(2)}`;
 
                 const tradesTbody = document.getElementById('trades-tbody');
                 const trades = hist.trades || [];
                 if (trades.length === 0) {
-                    tradesTbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No trade history recorded yet.</td></tr>';
+                    tradesTbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No trade history recorded yet.</td></tr>';
                 } else {
                     tradesTbody.innerHTML = trades.slice(0, 15).map(t => {
                         const isClosed = t.status === 'CLOSED';
@@ -1015,7 +1155,8 @@ def get_dashboard():
         async function executeITMOrder(optType) {
             if (!currentFnoSetup) return;
             const opt = optType === 'CE' ? currentFnoSetup.itm_call : currentFnoSetup.itm_put;
-            if (!confirm(`Execute Paper Buy for ${opt.symbol} @ Est. Premium ₹${opt.estimated_premium} (1 Lot = 25 Qty = ₹${opt.lot_cost})?`)) return;
+            const lotSize = currentFnoSetup.lot_size || 65;
+            if (!confirm(`Execute Paper Buy for ${opt.symbol} @ Est. Premium ₹${opt.estimated_premium} (1 Lot = ${lotSize} Qty = ₹${opt.lot_cost})?`)) return;
 
             try {
                 const res = await fetch('/api/trade/buy', {
@@ -1066,6 +1207,60 @@ def get_dashboard():
                 setTimeout(refreshDashboard, 2000);
             } catch (e) {
                 alert(`Scan error: ${e.message}`);
+            }
+        }
+
+        // Modals Logic
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.add('open');
+        }
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.remove('open');
+        }
+        async function confirmResetPortfolio() {
+            try {
+                const res = await fetch('/api/portfolio/reset', {method: 'POST'});
+                const data = await res.json();
+                if (res.ok) {
+                    alert('✅ ' + (data.message || 'Portfolio successfully reset to ₹30,000 INR!'));
+                    closeResetModal();
+                    refreshDashboard();
+                } else {
+                    alert('❌ Reset Failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        function openBroadcastModal() {
+            document.getElementById('broadcast-modal').classList.add('open');
+        }
+        function closeBroadcastModal() {
+            document.getElementById('broadcast-modal').classList.remove('open');
+        }
+        async function confirmBroadcast() {
+            const msg = document.getElementById('broadcast-message').value;
+            if (!msg || !msg.trim()) {
+                alert('Please enter a message to broadcast.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/telegram/broadcast', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg})
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`✅ Broadcast delivered to ${data.recipients_count} Telegram bot users!`);
+                    document.getElementById('broadcast-message').value = '';
+                    closeBroadcastModal();
+                } else {
+                    alert('❌ Broadcast Failed: ' + (data.detail || 'Error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
 

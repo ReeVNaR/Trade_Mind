@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from app.config import settings
-from app.database.models import Base, PortfolioSnapshot
+from app.database.models import Base, PortfolioSnapshot, Position, Trade
 from app.utils.logger import logger
 
 # Normalize Database URL (e.g. Render postgres:// -> postgresql://)
@@ -61,7 +61,12 @@ def init_db():
             )
             db.add(initial)
             db.commit()
-            logger.info(f"Initialized paper trading portfolio with balance: ${settings.INITIAL_BALANCE:,.2f}")
+            logger.info(f"Initialized paper trading portfolio with balance: ₹{settings.INITIAL_BALANCE:,.2f}")
+        elif db.query(Position).count() == 0 and latest_snapshot.cash_balance != settings.INITIAL_BALANCE:
+            latest_snapshot.cash_balance = settings.INITIAL_BALANCE
+            latest_snapshot.equity = settings.INITIAL_BALANCE
+            db.commit()
+            logger.info(f"Synchronized paper trading portfolio balance to: ₹{settings.INITIAL_BALANCE:,.2f}")
     except Exception as e:
         logger.error(f"Error initializing portfolio snapshot: {e}")
         db.rollback()
