@@ -200,6 +200,15 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # ATR
     data["atr_14"] = TechnicalIndicators.atr(data, period=14)
 
+    # Volume Confirmation Indicators
+    if "volume" in data.columns:
+        vol = data["volume"].astype(float)
+        data["volume_sma_20"] = TechnicalIndicators.sma(vol, window=20)
+        data["volume_surge_ratio"] = (vol / data["volume_sma_20"].replace(0, np.nan)).fillna(1.0)
+    else:
+        data["volume_sma_20"] = 1.0
+        data["volume_surge_ratio"] = 1.0
+
     # Supertrend
     try:
         st_dict = TechnicalIndicators.supertrend(data)
@@ -212,3 +221,4 @@ def calculate_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
         data["supertrend_dir"] = 1
 
     return data
+

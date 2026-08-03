@@ -192,11 +192,14 @@ class DataFetcher:
 
         ticker = yf.Ticker(norm_symbol)
         hist = ticker.history(period="5d", interval="1d")
+        if hist.empty:
+            hist = ticker.history(period="1mo", interval="1d")
         
         if hist.empty:
             if norm_symbol in self._trace_cache:
                 return self._trace_cache[norm_symbol]["trace"]
             raise ValueError(f"Unable to trace live exchange data for '{norm_symbol}'.")
+
 
         last_row = hist.iloc[-1]
         prev_row = hist.iloc[-2] if len(hist) > 1 else last_row

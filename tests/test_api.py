@@ -36,7 +36,7 @@ def test_status_endpoint(client):
     assert data["currency_code"] == "INR"
     assert "NSE" in data["market"]
     assert "market_status_ist" in data
-    assert data["initial_balance"] == 2000.0
+    assert data["initial_balance"] == 30000.0
 
 
 def test_indian_stocks_endpoint(client):
@@ -94,3 +94,28 @@ def test_backtest_endpoint(client):
     assert "total_return_percent" in data
     assert "win_rate_percent" in data
     assert data["currency"] == "₹"
+
+
+def test_trades_history_endpoint(client):
+    response = client.get("/api/trades/history")
+    assert response.status_code == 200
+    data = response.json()
+    assert "win_rate_percent" in data
+    assert "profit_factor" in data
+    assert "total_realized_pnl" in data
+    assert "trades" in data
+    assert data["currency"] == "₹"
+
+
+def test_confirm_setup_endpoint(client):
+    response = client.get("/api/confirm-setup/RELIANCE.NS")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "RELIANCE.NS"
+    assert "confidence_percent" in data
+    assert "checklist" in data
+    assert len(data["checklist"]) >= 5
+    assert "risk_reward_ratio" in data
+    assert "projected_stop_loss" in data
+    assert "projected_take_profit" in data
+

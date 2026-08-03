@@ -20,27 +20,35 @@ engine = create_engine(db_url, **engine_kwargs)
 # Auto-create tables if they do not exist
 Base.metadata.create_all(bind=engine)
 
+
+def _run_migrations():
+    with engine.connect() as conn:
+        for col in ["highest_price FLOAT", "trailing_stop FLOAT"]:
+            try:
+                conn.execute(text(f"ALTER TABLE positions ADD COLUMN {col}"))
+                conn.commit()
+            except Exception:
+                pass
+        for col in ["stop_loss FLOAT", "take_profit FLOAT"]:
+            try:
+                conn.execute(text(f"ALTER TABLE signal_logs ADD COLUMN {col}"))
+                conn.commit()
+            except Exception:
+                pass
+
+
+_run_migrations()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
     """Creates database tables and ensures initial snapshot exists."""
     Base.metadata.create_all(bind=engine)
-    
-    # Auto-migrate columns for SQLite if needed
-    with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE signal_logs ADD COLUMN stop_loss FLOAT"))
-            conn.commit()
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE signal_logs ADD COLUMN take_profit FLOAT"))
-            conn.commit()
-        except Exception:
-            pass
+    _run_migrations()
     
     db: Session = SessionLocal()
+
     try:
         # Check if portfolio snapshot exists; if not, initialize with default balance
         latest_snapshot = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.id.desc()).first()

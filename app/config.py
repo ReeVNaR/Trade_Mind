@@ -27,21 +27,27 @@ class Settings:
     # Gemini AI Configuration
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
     
-    # Virtual Portfolio (INR)
-    INITIAL_BALANCE: float = float(os.getenv("INITIAL_BALANCE", "2000.0"))
-    MAX_POSITION_SIZE_RATIO: float = float(os.getenv("MAX_POSITION_SIZE_RATIO", "0.20"))  # 20% max per trade
+    # Virtual Portfolio (INR) - Scaled to ₹30,000 Capital for NIFTY F&O
+    INITIAL_BALANCE: float = float(os.getenv("INITIAL_BALANCE", "30000.0"))
+    MAX_POSITION_SIZE_RATIO: float = float(os.getenv("MAX_POSITION_SIZE_RATIO", "0.35"))  # Max 35% margin per trade
     STOP_LOSS_PERCENT: float = float(os.getenv("STOP_LOSS_PERCENT", "0.015"))            # 1.5% stop loss
     TAKE_PROFIT_PERCENT: float = float(os.getenv("TAKE_PROFIT_PERCENT", "0.035"))        # 3.5% take profit
     
-    # Strictly Indian Stock Market (NSE / BSE) Watchlist Symbols
-    DEFAULT_SYMBOLS_RAW: str = os.getenv(
-        "DEFAULT_SYMBOLS",
-        "RELIANCE.NS,TCS.NS,INFY.NS,HDFCBANK.NS,ICICIBANK.NS,SBIN.NS,BHARTIARTL.NS,ITC.NS,LT.NS,M&M.NS,MARUTI.NS,KOTAKBANK.NS,AXISBANK.NS,BAJFINANCE.NS,ASIANPAINT.NS,WIPRO.NS,^NSEI,^NSEBANK"
-    )
+    # NIFTY 50 Futures & Options (F&O) & Daily Circuit Configuration
+    MAX_DAILY_TRADES: int = int(os.getenv("MAX_DAILY_TRADES", "4"))                      # Max 3-4 trades per day
+    MAX_DAILY_LOSS: float = float(os.getenv("MAX_DAILY_LOSS", "2000.0"))                  # Max ₹2,000 loss circuit
+    MAX_DAILY_PROFIT: float = float(os.getenv("MAX_DAILY_PROFIT", "4000.0"))              # Max ₹4,000 profit circuit
+    NIFTY_LOT_SIZE: int = int(os.getenv("NIFTY_LOT_SIZE", "25"))                         # NSE Nifty lot size
+    NIFTY_STRIKE_STEP: int = int(os.getenv("NIFTY_STRIKE_STEP", "50"))                   # 50-pt strike intervals
+    OPTION_STRIKE_TYPE: str = os.getenv("OPTION_STRIKE_TYPE", "ITM")                     # In-The-Money options
+    
+    # Strictly NIFTY 50 Index Universe (No other stocks)
+    DEFAULT_SYMBOLS_RAW: str = os.getenv("DEFAULT_SYMBOLS", "^NSEI")
     
     @property
     def DEFAULT_SYMBOLS(self) -> List[str]:
         return [s.strip().upper() for s in self.DEFAULT_SYMBOLS_RAW.split(",") if s.strip()]
+
         
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/trademind.db")

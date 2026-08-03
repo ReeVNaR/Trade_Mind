@@ -66,6 +66,8 @@ class Position(Base):
     current_price = Column(Float, nullable=False)
     stop_loss = Column(Float, nullable=True)
     take_profit = Column(Float, nullable=True)
+    highest_price = Column(Float, nullable=True)
+    trailing_stop = Column(Float, nullable=True)
     strategy = Column(String(50), default="default")
     unrealized_pnl = Column(Float, default=0.0)
     unrealized_pnl_percent = Column(Float, default=0.0)
@@ -80,11 +82,14 @@ class Position(Base):
             "current_price": round(self.current_price, 2),
             "stop_loss": round(self.stop_loss, 2) if self.stop_loss else None,
             "take_profit": round(self.take_profit, 2) if self.take_profit else None,
+            "highest_price": round(self.highest_price, 2) if self.highest_price else None,
+            "trailing_stop": round(self.trailing_stop, 2) if self.trailing_stop else None,
             "strategy": self.strategy,
             "unrealized_pnl": round(self.unrealized_pnl, 2),
             "unrealized_pnl_percent": round(self.unrealized_pnl_percent, 2),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
 
 
 class SignalLog(Base):
@@ -139,3 +144,29 @@ class PortfolioSnapshot(Base):
             "total_realized_pnl": round(self.total_realized_pnl, 2),
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
+
+
+class TelegramSubscriber(Base):
+    __tablename__ = "telegram_subscribers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String(50), unique=True, index=True, nullable=False)
+    username = Column(String(100), nullable=True)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)  # True = receiving live alerts
+    subscribed_at = Column(DateTime, default=datetime.utcnow)
+    last_interaction_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "chat_id": self.chat_id,
+            "username": self.username,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "is_active": self.is_active,
+            "subscribed_at": self.subscribed_at.isoformat() if self.subscribed_at else None,
+            "last_interaction_at": self.last_interaction_at.isoformat() if self.last_interaction_at else None,
+        }
+

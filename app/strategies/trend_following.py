@@ -32,70 +32,84 @@ class TrendFollowingStrategy(BaseStrategy):
         ema9 = float(curr["ema_9"])
         ema21 = float(curr["ema_21"])
         ema50 = float(curr["ema_50"])
+        ema200 = float(curr.get("ema_200", price))
         macd_hist = float(curr["macd_hist"])
         prev_macd_hist = float(prev["macd_hist"])
         atr = float(curr["atr_14"]) if "atr_14" in curr else price * 0.02
         rsi = float(curr["rsi_14"])
+        vol_surge = float(curr.get("volume_surge_ratio", 1.0))
 
         indicators_summary = {
             "price": round(price, 2),
             "ema9": round(ema9, 2),
             "ema21": round(ema21, 2),
             "ema50": round(ema50, 2),
+            "ema200": round(ema200, 2),
             "macd_hist": round(macd_hist, 4),
             "rsi": round(rsi, 2),
             "atr": round(atr, 2),
+            "volume_surge": round(vol_surge, 2),
         }
 
-        # Bullish conditions: Fast EMA above Slow EMA, MACD hist > 0 and increasing, price above EMA50, RSI not overbought
+        # Bullish conditions: Fast EMA above Slow EMA, MACD hist > 0 and increasing, price above EMA50 & EMA200
         bullish_score = 0
         if ema9 > ema21:
-            bullish_score += 0.35
+            bullish_score += 0.30
         if price > ema50:
-            bullish_score += 0.25
-        if macd_hist > 0 and macd_hist >= prev_macd_hist:
-            bullish_score += 0.25
-        if 45 <= rsi <= 70:
+            bullish_score += 0.20
+        if price > ema200:
             bullish_score += 0.15
+        if macd_hist > 0 and macd_hist >= prev_macd_hist:
+            bullish_score += 0.20
+        if 45 <= rsi <= 72:
+            bullish_score += 0.10
+        if vol_surge >= 1.1:
+            bullish_score += 0.10
 
-        # Bearish conditions: Fast EMA below Slow EMA, MACD hist < 0, price below EMA50
+        # Bearish conditions: Fast EMA below Slow EMA, MACD hist < 0, price below EMA50 & EMA200
         bearish_score = 0
         if ema9 < ema21:
-            bearish_score += 0.35
+            bearish_score += 0.30
         if price < ema50:
-            bearish_score += 0.25
-        if macd_hist < 0 and macd_hist <= prev_macd_hist:
-            bearish_score += 0.25
-        if 30 <= rsi <= 55:
+            bearish_score += 0.20
+        if price < ema200:
             bearish_score += 0.15
+        if macd_hist < 0 and macd_hist <= prev_macd_hist:
+            bearish_score += 0.20
+        if 28 <= rsi <= 55:
+            bearish_score += 0.10
+        if vol_surge >= 1.1:
+            bearish_score += 0.10
 
         if bullish_score >= 0.70:
             stop_loss = price - (1.5 * atr)
-            take_profit = price + (3.0 * atr)
+            take_profit = price + (3.5 * atr)  # Expanded 1:2.3+ R:R target
+            vol_note = f", Vol Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""
             return Signal(
                 symbol=symbol,
                 action=ActionType.BUY,
                 price=price,
-                confidence=bullish_score,
+                confidence=min(0.95, round(bullish_score, 2)),
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Bullish trend confluence: EMA9 > EMA21, MACD momentum positive, RSI at {rsi:.1f}.",
+                reason=f"Bullish trend confluence: EMA9 > EMA21, Price > EMA50/200, MACD momentum positive{vol_note}.",
                 indicators=indicators_summary
             )
 
         if bearish_score >= 0.70:
             stop_loss = price + (1.5 * atr)
-            take_profit = price - (3.0 * atr)
+            take_profit = price - (3.5 * atr)
+            vol_note = f", Vol Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""
             return Signal(
                 symbol=symbol,
                 action=ActionType.SELL,
                 price=price,
-                confidence=bearish_score,
+                confidence=min(0.95, round(bearish_score, 2)),
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Bearish trend breakdown: EMA9 < EMA21, MACD negative, price below EMA50.",
+                reason=f"Bearish trend breakdown: EMA9 < EMA21, Price < EMA50/200, MACD negative{vol_note}.",
                 indicators=indicators_summary
             )
 
@@ -108,3 +122,4 @@ class TrendFollowingStrategy(BaseStrategy):
             reason=f"Neutral consolidation. Bullish score {bullish_score:.2f}, Bearish score {bearish_score:.2f}.",
             indicators=indicators_summary
         )
+
