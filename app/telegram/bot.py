@@ -447,15 +447,18 @@ class TelegramService:
 
             reply = (
                 f"💼 *TRADEMIND AI — VIRTUAL PORTFOLIO* 🇮🇳\n\n"
-                f"• *Total Equity:* `{self.currency}{summary['total_equity']:,.2f}`\n"
-                f"• *Initial Capital:* `{self.currency}{summary['initial_balance']:,.2f}`\n"
-                f"• *Available Cash:* `{self.currency}{summary['cash_balance']:,.2f}`\n"
+                f"• *Account Capital / Equity:* `{self.currency}{summary['total_equity']:,.2f}`\n"
+                f"• *Available Cash Balance:* `{self.currency}{summary['cash_balance']:,.2f}`\n"
+                f"• *Starting Base Capital:* `{self.currency}{summary['initial_balance']:,.2f}`\n"
                 f"• *Positions Value:* `{self.currency}{summary['portfolio_value']:,.2f}`\n"
-                f"• *Today's Net PnL:* `{daily_sign}{self.currency}{daily_pnl:,.2f}`\n"
-                f"• *Today's Trades:* `{daily_risk.get('trades_today', 0)} / {settings.MAX_DAILY_TRADES}`\n"
-                f"• *Total Lifetime Realized PnL:* `{pnl_sign}{self.currency}{summary['total_realized_pnl']:,.2f}`\n"
-                f"• *Total Lifetime Return:* `{ret_sign}{summary['total_return_percent']:.2f}%`\n"
                 f"• *Open F&O Positions:* `{summary['open_positions_count']}`\n\n"
+                f"🛡️ *INTRADAY RISK CONTROLS:*\n"
+                f"• *Today's Net PnL:* `{daily_sign}{self.currency}{daily_pnl:,.2f}`\n"
+                f"• *Daily Stop-Loss Floor:* `-{self.currency}{settings.MAX_DAILY_LOSS:,.2f}`\n"
+                f"• *Daily Profit Target:* `+{self.currency}{settings.MAX_DAILY_PROFIT:,.2f}`\n"
+                f"• *Today's Trades Taken:* `{daily_risk.get('trades_today', 0)} / {settings.MAX_DAILY_TRADES}`\n"
+                f"• *Total Lifetime Realized PnL:* `{pnl_sign}{self.currency}{summary['total_realized_pnl']:,.2f}`\n"
+                f"• *Total Lifetime Return:* `{ret_sign}{summary['total_return_percent']:.2f}%`\n\n"
                 f"⏰ *As of:* `{now_ist}`"
             )
             self.send_message(reply, chat_id=chat_id)

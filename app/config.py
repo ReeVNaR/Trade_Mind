@@ -28,7 +28,7 @@ class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
     
     # Virtual Portfolio (INR) - Scaled to ₹30,000 Capital for NIFTY F&O
-    INITIAL_BALANCE: float = float(os.getenv("INITIAL_BALANCE", "30000.0"))
+    INITIAL_BALANCE: float = max(30000.0, float(os.getenv("INITIAL_BALANCE", "30000.0")))
     MAX_POSITION_SIZE_RATIO: float = float(os.getenv("MAX_POSITION_SIZE_RATIO", "0.35"))  # Max 35% margin per trade
     STOP_LOSS_PERCENT: float = float(os.getenv("STOP_LOSS_PERCENT", "0.015"))            # 1.5% stop loss
     TAKE_PROFIT_PERCENT: float = float(os.getenv("TAKE_PROFIT_PERCENT", "0.035"))        # 3.5% take profit
