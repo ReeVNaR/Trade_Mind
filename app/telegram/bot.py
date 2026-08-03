@@ -380,7 +380,8 @@ class TelegramService:
                 "ACTIVE": "🟢 *ACTIVE (Trading Enabled)*",
                 "HALTED_MAX_LOSS": "🛑 *HALTED (Max Daily SL Hit)*",
                 "HALTED_MAX_PROFIT": "🎉 *HALTED (Daily Profit Target Achieved)*",
-                "HALTED_MAX_TRADES": "⚠️ *HALTED (Daily Trade Cap Reached)*"
+                "HALTED_MAX_TRADES": "⚠️ *HALTED (Daily Trade Cap Reached)*",
+                "HALTED_EXPIRY_AFTER_2PM": "⏳ *HALTED (Expiry Day Post-2PM Cutoff)*"
             }.get(stats["circuit_status"], "🟢 *ACTIVE*")
 
             reply = (
@@ -458,6 +459,24 @@ class TelegramService:
                 f"⏰ *As of:* `{now_ist}`"
             )
             self.send_message(reply, chat_id=chat_id)
+
+        # 4b. Reset Portfolio Balance (Admin Only)
+        elif cmd in ["/reset", "/resetportfolio", "reset"]:
+            if not self.is_admin(chat_id):
+                reply = "⛔ *Access Denied:* The `/reset` portfolio command is restricted to the administrator (`8765494577`)."
+                self.send_message(reply, chat_id=chat_id)
+            else:
+                from app.portfolio.engine import portfolio_engine
+                summary = portfolio_engine.reset_portfolio(settings.INITIAL_BALANCE)
+                reply = (
+                    f"🔄 *PORTFOLIO RESET COMPLETED* 🇮🇳\n\n"
+                    f"• *Capital Restored:* `{self.currency}{summary['initial_balance']:,.2f}`\n"
+                    f"• *Available Cash:* `{self.currency}{summary['cash_balance']:,.2f}`\n"
+                    f"• *Open Positions:* `0`\n"
+                    f"• *Realized PnL:* `₹0.00`\n\n"
+                    f"✅ Paper trading account is now fresh with ₹30,000 INR starting capital."
+                )
+                self.send_message(reply, chat_id=chat_id)
 
         # 5. View Open Positions
         elif cmd in ["/positions", "positions", "open positions"]:

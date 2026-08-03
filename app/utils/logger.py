@@ -19,7 +19,12 @@ def setup_logger(name: str = "TradeMind") -> logging.Logger:
         
     formatter = logging.Formatter(log_format, datefmt=date_format)
     
-    # Console handler
+    # Console handler with UTF-8 support
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)

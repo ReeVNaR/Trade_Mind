@@ -20,6 +20,29 @@ class PortfolioEngine:
     def __init__(self):
         self._ensure_initial_state()
 
+    def reset_portfolio(self, initial_capital: float = settings.INITIAL_BALANCE) -> Dict[str, Any]:
+        """Resets the paper trading portfolio balance to initial capital (₹30,000 INR) and clears open positions."""
+        init_db()
+        db: Session = SessionLocal()
+        try:
+            db.query(Position).delete()
+            db.query(PortfolioSnapshot).delete()
+            db.query(Trade).delete()
+
+            clean_snapshot = PortfolioSnapshot(
+                cash_balance=initial_capital,
+                equity=initial_capital,
+                open_positions_count=0,
+                total_realized_pnl=0.0
+            )
+            db.add(clean_snapshot)
+            db.commit()
+            logger.info(f"🔄 Portfolio successfully reset to initial capital: ₹{initial_capital:,.2f}")
+        finally:
+            db.close()
+
+        return self.get_portfolio_summary()
+
     def _ensure_initial_state(self):
         init_db()
         db: Session = SessionLocal()
@@ -34,8 +57,8 @@ class PortfolioEngine:
                 )
                 db.add(snapshot)
                 db.commit()
-            elif snapshot.cash_balance < settings.INITIAL_BALANCE and db.query(Trade).count() == 0:
-                # Upgrade initial balance to ₹30,000 if no historical trades exist
+            elif snapshot.cash_balance < settings.INITIAL_BALANCE and db.query(Position).count() == 0:
+                # Synchronize to ₹30,000 initial capital
                 snapshot.cash_balance = settings.INITIAL_BALANCE
                 snapshot.equity = settings.INITIAL_BALANCE
                 db.commit()

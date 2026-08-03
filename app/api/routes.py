@@ -317,6 +317,12 @@ def get_portfolio():
     return portfolio_engine.get_portfolio_summary(current_prices)
 
 
+@router.post("/api/portfolio/reset")
+def reset_portfolio_endpoint():
+    """Resets virtual portfolio to fresh ₹30,000 INR initial balance and clears positions."""
+    return portfolio_engine.reset_portfolio()
+
+
 @router.get("/api/trades")
 def get_trades(db: Session = Depends(get_db)):
     """Returns trade execution history list."""

@@ -37,7 +37,7 @@ class Settings:
     MAX_DAILY_TRADES: int = int(os.getenv("MAX_DAILY_TRADES", "4"))                      # Max 3-4 trades per day
     MAX_DAILY_LOSS: float = float(os.getenv("MAX_DAILY_LOSS", "2000.0"))                  # Max ₹2,000 loss circuit
     MAX_DAILY_PROFIT: float = float(os.getenv("MAX_DAILY_PROFIT", "4000.0"))              # Max ₹4,000 profit circuit
-    NIFTY_LOT_SIZE: int = int(os.getenv("NIFTY_LOT_SIZE", "25"))                         # NSE Nifty lot size
+    NIFTY_LOT_SIZE: int = int(os.getenv("NIFTY_LOT_SIZE", "65"))                         # NSE Nifty lot size (65 units)
     NIFTY_STRIKE_STEP: int = int(os.getenv("NIFTY_STRIKE_STEP", "50"))                   # 50-pt strike intervals
     OPTION_STRIKE_TYPE: str = os.getenv("OPTION_STRIKE_TYPE", "ITM")                     # In-The-Money options
     

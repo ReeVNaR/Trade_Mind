@@ -17,7 +17,7 @@ except Exception:
     IST = pytz.timezone("Asia/Kolkata")
 
 
-NIFTY_LOT_SIZE = 25
+NIFTY_LOT_SIZE = 65
 NIFTY_STRIKE_STEP = 50
 
 
@@ -28,14 +28,14 @@ def get_nifty_atm_strike(spot_price: float) -> int:
 
 def get_current_weekly_expiry(base_date: Optional[datetime] = None) -> datetime:
     """
-    Returns the nearest upcoming NSE Thursday weekly expiry date.
-    NSE Index Options expire on Thursdays (or preceding Wednesday if Thursday is a holiday).
+    Returns the nearest upcoming NSE Tuesday weekly expiry date (effective Sept 2025 / Jan 2026 standards).
+    NSE Index Options expire on Tuesdays (or preceding Monday if Tuesday is a trading holiday).
     """
     now = base_date or datetime.now(IST)
     # weekday(): Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5, Sunday=6
-    days_ahead = (3 - now.weekday()) % 7
+    days_ahead = (1 - now.weekday()) % 7
     if days_ahead == 0 and now.time() > time(15, 30):
-        days_ahead = 7  # If today is Thursday after market close, take next Thursday
+        days_ahead = 7  # If today is Tuesday after market close, take next Tuesday
     expiry = now + timedelta(days=days_ahead)
     return expiry.replace(hour=15, minute=30, second=0, microsecond=0)
 
@@ -120,7 +120,7 @@ def get_nifty_itm_strike(
         "lot_size": NIFTY_LOT_SIZE,
         "lot_cost": round(premium * NIFTY_LOT_SIZE, 2),
         "expiry_date": expiry_dt.strftime("%Y-%m-%d"),
-        "expiry_display": expiry_dt.strftime("%d %b %Y (Thursday)")
+        "expiry_display": expiry_dt.strftime("%d %b %Y (Tuesday)")
     }
 
 
