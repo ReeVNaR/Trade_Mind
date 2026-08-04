@@ -198,3 +198,76 @@ def test_portfolio_daily_profit_target_circuit_auto_square_off():
     assert summary["daily_risk"]["circuit_status"] == "HALTED_MAX_PROFIT"
     assert summary["daily_risk"]["can_trade"] is False
 
+
+def test_entry_and_exit_points_transparency():
+    """Verifies that open positions and closed trades report precise entry, exit, and points captured metrics."""
+    engine = PortfolioEngine()
+    engine.reset_portfolio(30000.0)
+
+    symbol = "NIFTY 24850 CE"
+    entry_price = 150.0
+    # Execute Buy
+    engine.execute_buy(symbol=symbol, price=entry_price, strategy="Supertrend_VWAP_Indian", bypass_circuit=True)
+    pos = engine.get_position(symbol)
+    assert pos is not None
+    
+    # Check Position to_dict metrics
+    pos_dict = pos.to_dict()
+    assert pos_dict["average_entry_price"] >= 150.0
+    assert "points_change" in pos_dict
+    assert "points_change_percent" in pos_dict
+
+    # Execute Sell at 180.0
+    exit_price = 180.0
+    sell_trade = engine.execute_sell(symbol=symbol, price=exit_price, reason="Take Profit Reached")
+    assert sell_trade is not None
+    assert sell_trade["entry_price"] >= 150.0
+    assert sell_trade["exit_price"] == 180.0
+    assert sell_trade["points_change"] == round(exit_price - sell_trade["entry_price"], 2)
+    assert sell_trade["closed_at"] is not None
+    assert sell_trade["status"] == "CLOSED"
+    assert sell_trade["realized_pnl"] > 0
+
+
+def test_nifty_spot_price_tracking_on_buy_and_sell():
+    """Verifies that NIFTY Spot index prices are accurately recorded during both BUY and SELL execution."""
+    engine = PortfolioEngine()
+    engine.reset_portfolio(30000.0)
+
+    symbol = "NIFTY 24900 CE"
+    entry_option_price = 145.0
+    entry_spot = 24890.50
+    exit_option_price = 195.0
+    exit_spot = 25010.25
+
+    # 1. Execute Buy with explicit spot price
+    buy_trade = engine.execute_buy(
+        symbol=symbol,
+        price=entry_option_price,
+        strategy="Supertrend_VWAP_Indian",
+        bypass_circuit=True,
+        spot_price=entry_spot
+    )
+    assert buy_trade is not None
+    assert buy_trade["entry_spot_price"] == entry_spot
+
+    # Check that open position retains the entry spot price
+    pos = engine.get_position(symbol)
+    assert pos is not None
+    pos_dict = pos.to_dict()
+    assert pos_dict["entry_spot_price"] == entry_spot
+
+    # 2. Execute Sell with exit spot price
+    sell_trade = engine.execute_sell(
+        symbol=symbol,
+        price=exit_option_price,
+        reason="Target 1 Hit",
+        spot_price=exit_spot
+    )
+    assert sell_trade is not None
+    assert sell_trade["entry_spot_price"] == entry_spot
+    assert sell_trade["exit_spot_price"] == exit_spot
+    assert sell_trade["exit_price"] == exit_option_price
+    assert sell_trade["realized_pnl"] > 0
+
+

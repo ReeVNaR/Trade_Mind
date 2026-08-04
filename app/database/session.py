@@ -24,7 +24,7 @@ Base.metadata.create_all(bind=engine)
 
 def _run_migrations():
     with engine.connect() as conn:
-        for col in ["highest_price FLOAT", "trailing_stop FLOAT"]:
+        for col in ["highest_price FLOAT", "trailing_stop FLOAT", "entry_spot_price FLOAT"]:
             try:
                 conn.execute(text(f"ALTER TABLE positions ADD COLUMN {col}"))
                 conn.commit()
@@ -33,6 +33,12 @@ def _run_migrations():
         for col in ["stop_loss FLOAT", "take_profit FLOAT"]:
             try:
                 conn.execute(text(f"ALTER TABLE signal_logs ADD COLUMN {col}"))
+                conn.commit()
+            except Exception:
+                pass
+        for col in ["entry_spot_price FLOAT", "exit_spot_price FLOAT"]:
+            try:
+                conn.execute(text(f"ALTER TABLE trades ADD COLUMN {col}"))
                 conn.commit()
             except Exception:
                 pass

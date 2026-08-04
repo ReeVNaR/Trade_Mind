@@ -1023,12 +1023,12 @@ def get_dashboard():
                             <thead>
                                 <tr>
                                     <th>Contract / Symbol</th>
-                                    <th>Qty (Units)</th>
-                                    <th>Entry Price</th>
-                                    <th>LTP</th>
-                                    <th>Stop Loss / TSL</th>
-                                    <th>Target</th>
-                                    <th>Unrealized PnL</th>
+                                    <th>Qty (Lots)</th>
+                                    <th>📍 Entry Point</th>
+                                    <th>⚡ Current LTP</th>
+                                    <th>📈 Move (Δ pts / %)</th>
+                                    <th>🛡️ TSL Floor</th>
+                                    <th>💰 Unrealized PnL</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -1057,14 +1057,14 @@ def get_dashboard():
                         <table>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#ID</th>
                                     <th>Contract</th>
-                                    <th>Side</th>
-                                    <th>Entry</th>
-                                    <th>Exit</th>
-                                    <th>Realized PnL</th>
-                                    <th>Return %</th>
-                                    <th>Status / Exit Reason</th>
+                                    <th>Outcome</th>
+                                    <th>📍 Entry Point</th>
+                                    <th>🏁 Exit Point</th>
+                                    <th>📈 Points (Δ pts)</th>
+                                    <th>💰 Realized PnL</th>
+                                    <th>📝 Exit Trigger / Reason</th>
                                 </tr>
                             </thead>
                             <tbody id="trades-tbody">
@@ -1577,15 +1577,20 @@ def get_dashboard():
                         const pnlPct = p.unrealized_pnl_percent || 0.0;
                         const sign = pnl >= 0 ? '+' : '';
                         const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                        const pts = (p.points_change !== undefined && p.points_change !== null) ? p.points_change : (p.current_price - p.average_entry_price);
+                        const ptsSign = pts >= 0 ? '+' : '';
+                        const lots = Math.max(1, Math.round(p.quantity / 65));
+                        const tslVal = p.trailing_stop ? `₹${p.trailing_stop.toFixed(2)}` : (p.stop_loss ? `₹${p.stop_loss.toFixed(2)}` : '<span style="color: var(--accent-cyan);">Dynamic</span>');
+                        const spotEntryHtml = p.entry_spot_price ? `<div style="font-size: 11px; color: var(--accent-cyan); margin-top: 2px;">Spot: ₹${p.entry_spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>` : '';
                         return `
                             <tr>
                                 <td><b>${p.symbol}</b></td>
-                                <td>${p.quantity.toFixed(0)}</td>
-                                <td>₹${p.average_entry_price.toFixed(2)}</td>
-                                <td>₹${p.current_price.toFixed(2)}</td>
-                                <td>₹${(p.trailing_stop || p.stop_loss || 0).toFixed(2)}</td>
-                                <td>₹${(p.take_profit || 0).toFixed(2)}</td>
-                                <td class="${pnlClass}"><b>${sign}₹${pnl.toFixed(2)} (${sign}${pnlPct.toFixed(2)}%)</b></td>
+                                <td>${p.quantity.toFixed(0)} <span style="font-size: 11px; color: var(--text-muted);">(${lots}L)</span></td>
+                                <td><b style="color: var(--text-primary);">₹${p.average_entry_price.toFixed(2)}</b>${spotEntryHtml}</td>
+                                <td><b>₹${p.current_price.toFixed(2)}</b></td>
+                                <td class="${pts >= 0 ? 'positive' : 'negative'}"><b>${ptsSign}${pts.toFixed(2)} pts</b> <span style="font-size: 11px;">(${ptsSign}${pnlPct.toFixed(2)}%)</span></td>
+                                <td>${tslVal}</td>
+                                <td class="${pnlClass}"><b>${sign}₹${pnl.toFixed(2)}</b></td>
                                 <td><button class="secondary" style="padding: 4px 8px; font-size: 11px;" onclick="closePosition('${p.symbol}', ${p.current_price})">Exit</button></td>
                             </tr>
                         `;
@@ -1609,16 +1614,23 @@ def get_dashboard():
                         const pnlPct = t.pnl_percent || 0.0;
                         const sign = pnl >= 0 ? '+' : '';
                         const badge = !isClosed ? '<span class="badge badge-tsl">OPEN</span>' : (pnl > 0 ? '<span class="win-badge">WIN</span>' : '<span class="loss-badge">LOSS</span>');
+                        const entrySpotHtml = t.entry_spot_price ? `<div style="font-size: 10px; color: var(--accent-cyan);">Spot: ₹${t.entry_spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>` : '';
+                        const exitSpotHtml = t.exit_spot_price ? `<div style="font-size: 10px; color: var(--accent-cyan);">Spot: ₹${t.exit_spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>` : '';
+                        const entryStr = `<div>₹${t.entry_price.toFixed(2)}</div>${entrySpotHtml}`;
+                        const exitStr = t.exit_price ? `<div>₹${t.exit_price.toFixed(2)}</div>${exitSpotHtml}` : '<span style="color: var(--text-muted);">-</span>';
+                        const pts = (t.points_change !== undefined && t.points_change !== null) ? t.points_change : (t.exit_price ? (t.exit_price - t.entry_price) : 0);
+                        const ptsSign = pts >= 0 ? '+' : '';
+                        const ptsDisplay = t.exit_price ? `${ptsSign}${pts.toFixed(2)} pts` : '-';
                         return `
                             <tr>
                                 <td>#${t.id}</td>
                                 <td><b>${t.symbol}</b></td>
-                                <td>${badge} ${t.side}</td>
-                                <td>₹${t.entry_price.toFixed(2)}</td>
-                                <td>${t.exit_price ? '₹' + t.exit_price.toFixed(2) : '-'}</td>
-                                <td class="${pnl >= 0 ? 'positive' : 'negative'}"><b>${sign}₹${pnl.toFixed(2)}</b></td>
-                                <td class="${pnlPct >= 0 ? 'positive' : 'negative'}">${sign}${pnlPct.toFixed(2)}%</td>
-                                <td style="font-size: 11px; color: var(--text-muted);">${t.reason || t.status}</td>
+                                <td>${badge}</td>
+                                <td><b>${entryStr}</b></td>
+                                <td><b>${exitStr}</b></td>
+                                <td class="${pts >= 0 ? 'positive' : 'negative'}"><b>${ptsDisplay}</b></td>
+                                <td class="${pnl >= 0 ? 'positive' : 'negative'}"><b>${sign}₹${pnl.toFixed(2)}</b> <span style="font-size: 11px;">(${sign}${pnlPct.toFixed(2)}%)</span></td>
+                                <td style="font-size: 11px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${t.reason || t.status}">${t.reason || t.status}</td>
                             </tr>
                         `;
                     }).join('');

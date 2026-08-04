@@ -175,20 +175,21 @@ class PortfolioEngine:
                     strategy=signal.strategy_name,
                     stop_loss=opt_sl,
                     take_profit=opt_tp,
-                    reason=reason
+                    reason=reason,
+                    spot_price=signal.price
                 )
             elif signal.action == ActionType.SELL:
                 # First check if an open CE or index position exists to close
                 open_pos = self.get_position(signal.symbol)
                 if open_pos:
-                    return self.execute_sell(symbol=signal.symbol, price=signal.price, reason=signal.reason)
+                    return self.execute_sell(symbol=signal.symbol, price=signal.price, reason=signal.reason, spot_price=signal.price)
 
                 # Check if any open CE option exists to exit
                 db = SessionLocal()
                 try:
                     ce_pos = db.query(Position).filter(Position.symbol.like("NIFTY%CE%")).first()
                     if ce_pos:
-                        return self.execute_sell(symbol=ce_pos.symbol, price=ce_pos.current_price, reason="Bearish Nifty Reversal Exit")
+                        return self.execute_sell(symbol=ce_pos.symbol, price=ce_pos.current_price, reason="Bearish Nifty Reversal Exit", spot_price=signal.price)
                 finally:
                     db.close()
 
@@ -205,7 +206,8 @@ class PortfolioEngine:
                     strategy=signal.strategy_name,
                     stop_loss=opt_sl,
                     take_profit=opt_tp,
-                    reason=reason
+                    reason=reason,
+                    spot_price=signal.price
                 )
         else:
             if signal.action == ActionType.BUY:
@@ -245,15 +247,24 @@ class PortfolioEngine:
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
         reason: str = "",
-        bypass_circuit: bool = False
+        bypass_circuit: bool = False,
+        spot_price: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Executes a paper BUY order in ₹ INR with Daily Risk Circuit validation
-        and NIFTY F&O lot sizing.
+        Executes a paper BUY order in ₹ INR with Daily Risk Circuit validation,
+        NIFTY F&O lot sizing, and NIFTY spot price tracking.
         """
         if price <= 0:
             logger.warning(f"Invalid buy price ₹{price} for {symbol}")
             return None
+
+        # --- Fetch NIFTY Spot Price if not passed ---
+        if spot_price is None:
+            try:
+                from app.data.fetcher import data_fetcher
+                spot_price = data_fetcher.get_current_price("^NSEI")
+            except Exception:
+                spot_price = None
 
         # --- Check Daily Risk Circuit Breaker ---
         can_trade, circuit_msg = daily_risk_manager.can_open_new_trade(
@@ -314,12 +325,15 @@ class PortfolioEngine:
                 pos.highest_price = max(pos.highest_price or price, price)
                 pos.stop_loss = stop_loss or pos.stop_loss
                 pos.take_profit = take_profit or pos.take_profit
+                if not pos.entry_spot_price and spot_price:
+                    pos.entry_spot_price = spot_price
             else:
                 pos = Position(
                     symbol=symbol,
                     quantity=quantity,
                     average_entry_price=effective_price + (charges / quantity if quantity > 0 else 0),
                     current_price=price,
+                    entry_spot_price=spot_price,
                     highest_price=price,
                     trailing_stop=None,
                     stop_loss=stop_loss or ((price * (1 - settings.STOP_LOSS_PERCENT)) if settings.ENABLE_PER_TRADE_SL_TP else None),
@@ -334,6 +348,7 @@ class PortfolioEngine:
                 side="BUY",
                 quantity=quantity,
                 entry_price=effective_price,
+                entry_spot_price=spot_price,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
                 strategy=strategy,
@@ -352,7 +367,8 @@ class PortfolioEngine:
             db.add(new_snapshot)
             db.commit()
 
-            logger.info(f"✅ EXECUTED BUY: {quantity:.0f} {symbol} @ ₹{effective_price:,.2f} | Charges: ₹{charges:.2f}")
+            spot_log = f" | NIFTY Spot: ₹{spot_price:,.2f}" if spot_price else ""
+            logger.info(f"✅ EXECUTED BUY: {quantity:.0f} {symbol} @ ₹{effective_price:,.2f}{spot_log} | Charges: ₹{charges:.2f}")
             return trade.to_dict()
 
         except Exception as e:
@@ -366,12 +382,21 @@ class PortfolioEngine:
         self,
         symbol: str,
         price: float,
-        reason: str = ""
+        reason: str = "",
+        spot_price: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Executes a paper SELL / EXIT order, deducting Indian statutory charges (STT, GST, etc.)
-        and updating cash, equity, and realized PnL.
+        and recording NIFTY spot index entry and exit prices.
         """
+        # Fetch NIFTY Spot Price if not passed
+        if spot_price is None:
+            try:
+                from app.data.fetcher import data_fetcher
+                spot_price = data_fetcher.get_current_price("^NSEI")
+            except Exception:
+                spot_price = None
+
         db: Session = SessionLocal()
         try:
             pos = db.query(Position).filter(Position.symbol == symbol).first()
@@ -398,9 +423,13 @@ class PortfolioEngine:
             trade = db.query(Trade).filter(Trade.symbol == symbol, Trade.status == "OPEN").order_by(Trade.id.desc()).first()
             if trade:
                 trade.exit_price = price
+                trade.exit_spot_price = spot_price
+                if not trade.entry_spot_price and pos.entry_spot_price:
+                    trade.entry_spot_price = pos.entry_spot_price
                 trade.realized_pnl = realized_pnl
                 trade.pnl_percent = pnl_percent
                 trade.status = "CLOSED"
+                trade.closed_at = datetime.utcnow()
                 trade.reason = f"{reason} (Taxes/Charges: ₹{charges:.2f})".strip()
             else:
                 trade = Trade(
@@ -409,10 +438,13 @@ class PortfolioEngine:
                     quantity=pos.quantity,
                     entry_price=pos.average_entry_price,
                     exit_price=price,
+                    entry_spot_price=pos.entry_spot_price,
+                    exit_spot_price=spot_price,
                     realized_pnl=realized_pnl,
                     pnl_percent=pnl_percent,
                     strategy=pos.strategy,
                     status="CLOSED",
+                    closed_at=datetime.utcnow(),
                     reason=f"{reason} (Taxes/Charges: ₹{charges:.2f})".strip()
                 )
                 db.add(trade)
@@ -430,9 +462,11 @@ class PortfolioEngine:
             db.add(new_snapshot)
             db.commit()
 
+            pts_delta = price - pos.average_entry_price
+            spot_log = f" | NIFTY Spot: ₹{trade.entry_spot_price:,.2f} ➔ ₹{spot_price:,.2f}" if (trade.entry_spot_price and spot_price) else (f" | NIFTY Spot: ₹{spot_price:,.2f}" if spot_price else "")
             logger.info(
-                f"🛑 EXECUTED SELL: {pos.quantity:.0f} {symbol} @ ₹{price:,.2f} | "
-                f"Realized PnL: ₹{realized_pnl:,.2f} ({pnl_percent:+.2f}%) | Charges: ₹{charges:.2f}"
+                f"🛑 EXECUTED SELL: {pos.quantity:.0f} {symbol}{spot_log} | Option: ₹{pos.average_entry_price:,.2f} ➔ ₹{price:,.2f} "
+                f"({pts_delta:+.2f} pts) | Realized PnL: ₹{realized_pnl:,.2f} ({pnl_percent:+.2f}%) | Charges: ₹{charges:.2f}"
             )
             return trade.to_dict()
 
@@ -455,6 +489,14 @@ class PortfolioEngine:
         circuit_type = None
         total_daily_pnl = 0.0
         circuit_limit = 0.0
+
+        nifty_spot = current_prices.get("^NSEI")
+        if not nifty_spot:
+            try:
+                from app.data.fetcher import data_fetcher
+                nifty_spot = data_fetcher.get_current_price("^NSEI")
+            except Exception:
+                nifty_spot = None
 
         db: Session = SessionLocal()
         try:
@@ -537,7 +579,7 @@ class PortfolioEngine:
 
         # Execute sell orders independently without session conflict
         for sym, p, msg in positions_to_close:
-            trade = self.execute_sell(sym, p, reason=msg)
+            trade = self.execute_sell(sym, p, reason=msg, spot_price=nifty_spot)
             if trade:
                 closed_trades.append(trade)
                 if not circuit_type:
@@ -547,7 +589,8 @@ class PortfolioEngine:
                         telegram_service.send_bot_exit_alert(
                             trade=trade,
                             exit_reason=msg,
-                            equity=summary.get("total_equity")
+                            equity=summary.get("total_equity"),
+                            spot_price=nifty_spot
                         )
                     except Exception as e:
                         logger.error(f"Error sending exit Telegram alert: {e}")

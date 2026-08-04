@@ -182,16 +182,14 @@ class TelegramService:
     ):
         """
         Broadcasts an official BUY execution alert ONLY when the bot actually buys/enters a position.
+        Clearly highlights the exact Entry Point, NIFTY spot price, Position Sizing, and Dynamic Exit Criteria.
         """
         symbol = trade.get("symbol", "NIFTY")
         quantity = trade.get("quantity", 0)
         entry_price = trade.get("entry_price", 0.0)
+        entry_spot = spot_price or trade.get("entry_spot_price")
         lots = max(1, int(quantity / settings.NIFTY_LOT_SIZE)) if quantity >= settings.NIFTY_LOT_SIZE else 1
         total_amount = quantity * entry_price
-        sl = trade.get("stop_loss")
-        tp = trade.get("take_profit")
-        sl_str = f"{self.currency}{sl:,.2f}" if sl else "N/A"
-        tp_str = f"{self.currency}{tp:,.2f}" if tp else "N/A"
         
         reasoning = ""
         risk_level = "MODERATE"
@@ -202,23 +200,28 @@ class TelegramService:
             conf_val = getattr(ai_result, "confidence_score", 0.8)
             confidence = int(conf_val * 100) if conf_val <= 1.0 else int(conf_val)
 
-        spot_str = f" (NIFTY Spot: ₹{spot_price:,.2f})" if spot_price else ""
+        spot_str = f"• *NIFTY 50 Spot Index:* `{self.currency}{entry_spot:,.2f}`\n" if entry_spot else ""
         now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
         
         message = (
             f"⚡ *TRADEMIND AI — ORDER EXECUTED (BOT BOUGHT)* 🇮🇳\n\n"
-            f"🎯 *Contract:* `{symbol}`{spot_str}\n"
-            f"📈 *Action:* 🟢 *BUY (ORDER FILLED)*\n"
-            f"💵 *Executed Premium:* `{self.currency}{entry_price:,.2f}`\n"
-            f"📦 *Position:* `{quantity:.0f} units` ({lots} Lot{'s' if lots > 1 else ''})\n"
-            f"💼 *Capital Deployed:* `{self.currency}{total_amount:,.2f}`\n"
-            f"🛑 *Stop Loss:* `{sl_str}` (-15% SL)\n"
-            f"🎯 *Take Profit:* `{tp_str}` (+35% Target)\n"
+            f"🎯 *Contract:* `{symbol}`\n"
+            f"🟢 *Action:* `BUY / LONG (ORDER FILLED)`\n\n"
+            f"📍 *EXACT ENTRY POINTS:*\n"
+            f"• *Option Premium Entry:* `{self.currency}{entry_price:,.2f}`\n"
+            f"{spot_str}"
+            f"📦 *Position Size:* `{quantity:.0f} units` ({lots} Lot{'s' if lots > 1 else ''})\n"
+            f"💼 *Capital Deployed:* `{self.currency}{total_amount:,.2f}`\n\n"
+            f"🚪 *EXIT & RISK MANAGEMENT:*\n"
+            f"• *Trailing Stop-Loss:* `Dynamic (Ratchets at +1.5% profit)`\n"
+            f"• *Daily Loss Floor:* `-{self.currency}{settings.MAX_DAILY_LOSS:,.2f} Portfolio Max SL`\n"
+            f"• *Daily Profit Target:* `+{self.currency}{settings.MAX_DAILY_PROFIT:,.2f} Portfolio Target`\n"
+            f"• *Intraday Auto Square-Off:* `15:25 IST`\n\n"
             f"📊 *Strategy:* `{strategy}`\n"
-            f"🔢 *AI Confidence:* `{confidence}%` | Risk: `{risk_level}`\n\n"
-            f"🧠 *Gemini AI Reasoning:*\n"
-            f"_{reasoning or 'High probability trend setup confirmed.'}_\n\n"
-            f"⏰ *Time:* `{now_ist}`\n"
+            f"🔢 *AI Conviction:* `{confidence}%` | Risk: `{risk_level}`\n"
+            f"🧠 *AI Technical Confluence:*\n"
+            f"_{reasoning or 'High probability Supertrend & VWAP confluence setup.'}_\n\n"
+            f"⏰ *Entry Time:* `{now_ist}`\n"
             f"✅ *Status: ACTIVE TRADE MANAGED BY BOT*"
         )
         self.send_message(message)
@@ -227,34 +230,57 @@ class TelegramService:
         self,
         trade: Dict[str, Any],
         exit_reason: str = "",
-        equity: Optional[float] = None
+        equity: Optional[float] = None,
+        spot_price: Optional[float] = None
     ):
         """
-        Broadcasts an official EXIT execution alert when a position is closed by SL, TP, TSL or strategy.
+        Broadcasts an official EXIT execution alert when a position is closed.
+        Clearly displays Entry Point, Exit Point (including NIFTY Spot Price at Buy & Sell),
+        Points Captured, and Net Realized PnL.
         """
         symbol = trade.get("symbol", "NIFTY")
         quantity = trade.get("quantity", 0)
         entry_price = trade.get("entry_price", 0.0)
         exit_price = trade.get("exit_price", 0.0)
+        entry_spot = trade.get("entry_spot_price")
+        exit_spot = spot_price or trade.get("exit_spot_price")
+
         realized_pnl = trade.get("realized_pnl", 0.0)
         pnl_pct = trade.get("pnl_percent", 0.0)
+        pts_delta = exit_price - entry_price
         
         sign = "+" if realized_pnl >= 0 else ""
+        pts_sign = "+" if pts_delta >= 0 else ""
         pnl_emoji = "🟢" if realized_pnl >= 0 else "🛑"
-        header = "PROFIT TARGET SECURED" if realized_pnl > 0 else "RISK MANAGED EXIT"
+        header = "PROFIT TARGET / GAIN LOCKED" if realized_pnl > 0 else "RISK MANAGED EXIT"
         
+        spot_entry_str = f" (`Spot: {self.currency}{entry_spot:,.2f}`)" if entry_spot else ""
+        spot_exit_str = f" (`Spot: {self.currency}{exit_spot:,.2f}`)" if exit_spot else ""
+
+        spot_pts_text = ""
+        if entry_spot and exit_spot:
+            s_diff = exit_spot - entry_spot
+            s_sign = "+" if s_diff >= 0 else ""
+            s_pct = (s_diff / entry_spot * 100.0) if entry_spot > 0 else 0.0
+            spot_pts_text = f"• *NIFTY Spot Move:* `{s_sign}{s_diff:,.2f} pts` (`{s_sign}{s_pct:.2f}%`)\n"
+
         equity_str = f"\n💼 *Updated Account Equity:* `{self.currency}{equity:,.2f}`" if equity else ""
         now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
         
         message = (
             f"{pnl_emoji} *TRADEMIND AI — POSITION CLOSED (BOT EXITED)* 🇮🇳\n\n"
             f"🎯 *Contract:* `{symbol}`\n"
-            f"🚪 *Side:* SELL / EXIT ({header})\n"
-            f"💵 *Exit Premium:* `{self.currency}{exit_price:,.2f}` (Entry: `{self.currency}{entry_price:,.2f}`)\n"
-            f"🔢 *Quantity:* `{quantity:.0f} units`\n"
-            f"💰 *Net Realized PnL:* `{sign}{self.currency}{realized_pnl:,.2f}` (`{sign}{pnl_pct:.2f}%`)\n"
-            f"📝 *Exit Trigger:* _{exit_reason or trade.get('reason', 'Target/SL hit')}_{equity_str}\n"
-            f"⏰ *Closed At:* `{now_ist}`"
+            f"🚪 *Action:* `SELL / EXIT ({header})`\n\n"
+            f"📍 *ENTRY POINT:* `{self.currency}{entry_price:,.2f}`{spot_entry_str}\n"
+            f"🏁 *EXIT POINT:* `{self.currency}{exit_price:,.2f}`{spot_exit_str}\n\n"
+            f"📈 *POINTS CAPTURED:*\n"
+            f"• *Option Premium Move:* `{pts_sign}{pts_delta:,.2f} pts` (`{pts_sign}{((pts_delta / entry_price) * 100.0) if entry_price > 0 else 0:.2f}%`)\n"
+            f"{spot_pts_text}"
+            f"📦 *Quantity:* `{quantity:.0f} units`\n"
+            f"💰 *NET REALIZED PnL:* `{sign}{self.currency}{realized_pnl:,.2f}` (`{sign}{pnl_pct:.2f}%`)\n\n"
+            f"📝 *Exit Trigger / Reason:*\n"
+            f"_{exit_reason or trade.get('reason', 'Target/Circuit hit')}_{equity_str}\n"
+            f"⏰ *Exit Time:* `{now_ist}`"
         )
         self.send_message(message)
 
@@ -636,12 +662,17 @@ class TelegramService:
                 lines = [f"📂 *ACTIVE OPEN POSITIONS ({len(positions)}):*\n"]
                 for p in positions:
                     sign = "+" if p['unrealized_pnl'] >= 0 else ""
-                    tsl_info = f" | TSL: `{self.currency}{p['trailing_stop']:,.2f}`" if p.get('trailing_stop') else ""
+                    pts_delta = p['current_price'] - p['average_entry_price']
+                    pts_sign = "+" if pts_delta >= 0 else ""
+                    entry_spot = p.get('entry_spot_price')
+                    spot_entry_text = f" (NIFTY Spot: `{self.currency}{entry_spot:,.2f}`)" if entry_spot else ""
+                    tsl_info = f"\n  🛡️ TSL Floor: `{self.currency}{p['trailing_stop']:,.2f}`" if p.get('trailing_stop') else ""
                     lines.append(
                         f"• *{p['symbol']}*\n"
-                        f"  Qty: `{p['quantity']:.0f}` | Avg: `{self.currency}{p['average_entry_price']:,.2f}` | LTP: `{self.currency}{p['current_price']:,.2f}`\n"
-                        f"  PnL: `{sign}{self.currency}{p['unrealized_pnl']:,.2f} ({sign}{p['unrealized_pnl_percent']:.2f}%)`\n"
-                        f"  SL: `{self.currency}{p['stop_loss']:,.2f}`{tsl_info} | TP: `{self.currency}{p['take_profit']:,.2f}`"
+                        f"  📍 Entry Point: `{self.currency}{p['average_entry_price']:,.2f}`{spot_entry_text} ➔ Live: `{self.currency}{p['current_price']:,.2f}`\n"
+                        f"  📈 Points Move: `{pts_sign}{pts_delta:,.2f} pts` ({pts_sign}{p['unrealized_pnl_percent']:.2f}%)\n"
+                        f"  📦 Qty: `{p['quantity']:.0f} units`\n"
+                        f"  💰 Live PnL: `{sign}{self.currency}{p['unrealized_pnl']:,.2f}`{tsl_info}"
                     )
                 reply = "\n".join(lines)
             self.send_message(reply, chat_id=chat_id)
@@ -682,6 +713,8 @@ class TelegramService:
                     status = t.get("status", "OPEN")
                     entry = t.get("entry_price", 0.0)
                     exit_p = t.get("exit_price")
+                    entry_spot = t.get("entry_spot_price")
+                    exit_spot = t.get("exit_spot_price")
                     pnl = t.get("realized_pnl", 0.0)
                     pnl_pct = t.get("pnl_percent", 0.0)
                     sign = "+" if pnl >= 0 else ""
@@ -690,16 +723,28 @@ class TelegramService:
                         badge = "🟢 *WIN*" if pnl > 0 else ("🔴 *LOSS*" if pnl < 0 else "⚪ *EVEN*")
                         reason = t.get("reason") or "Closed"
                         exit_str = f"`{self.currency}{exit_p:,.2f}`" if exit_p else "N/A"
+                        pts_delta = (exit_p - entry) if exit_p is not None else 0.0
+                        pts_sign = "+" if pts_delta >= 0 else ""
+                        
+                        spot_str = ""
+                        if entry_spot and exit_spot:
+                            s_delta = exit_spot - entry_spot
+                            s_sign = "+" if s_delta >= 0 else ""
+                            spot_str = f"\n   • 🏛️ NIFTY Spot: `{self.currency}{entry_spot:,.2f}` ➔ `{self.currency}{exit_spot:,.2f}` (`{s_sign}{s_delta:,.2f} pts`)"
+                        elif entry_spot:
+                            spot_str = f"\n   • 🏛️ NIFTY Entry Spot: `{self.currency}{entry_spot:,.2f}`"
+
                         history_lines.append(
                             f"{idx}. {badge} *{sym}* ({side})\n"
-                            f"   • Entry: `{self.currency}{entry:,.2f}` ➔ Exit: {exit_str}\n"
-                            f"   • PnL: `{sign}{self.currency}{pnl:,.2f} ({sign}{pnl_pct:.2f}%)`\n"
-                            f"   • Reason: _{reason}_"
+                            f"   • 📍 Option Entry: `{self.currency}{entry:,.2f}` ➔ 🏁 Exit: {exit_str} (`{pts_sign}{pts_delta:,.2f} pts`){spot_str}\n"
+                            f"   • 💰 Net PnL: `{sign}{self.currency}{pnl:,.2f}` (`{sign}{pnl_pct:.2f}%`)\n"
+                            f"   • 📝 Trigger: _{reason}_"
                         )
                     else:
+                        entry_spot_str = f" | NIFTY Spot: `{self.currency}{entry_spot:,.2f}`" if entry_spot else ""
                         history_lines.append(
                             f"{idx}. 🔵 *OPEN* *{sym}* ({side})\n"
-                            f"   • Entry: `{self.currency}{entry:,.2f}` | Strategy: `{t.get('strategy', 'Algo')}`"
+                            f"   • 📍 Entry Point: `{self.currency}{entry:,.2f}`{entry_spot_str} | Strategy: `{t.get('strategy', 'Algo')}`"
                         )
 
             history_lines.append(f"\n⏰ *As of:* `{now_ist}`")
