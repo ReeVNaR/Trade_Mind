@@ -258,6 +258,47 @@ class TelegramService:
         )
         self.send_message(message)
 
+    def send_daily_circuit_square_off_alert(
+        self,
+        circuit_type: str,
+        total_daily_pnl: float,
+        limit: float,
+        closed_count: int,
+        equity: Optional[float] = None
+    ):
+        """Dispatches immediate notification when Daily Circuit Breaker (Max Loss / Profit Target) triggers auto square-off."""
+        now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+        sign = "+" if total_daily_pnl >= 0 else ""
+        
+        if circuit_type == "MAX_LOSS":
+            emoji = "🛑"
+            title = "DAILY STOP-LOSS CIRCUIT TRIGGERED — CAPITAL PROTECTED"
+            desc = (
+                f"⚠️ *Total daily loss reached `{self.currency}{abs(total_daily_pnl):,.2f}`* "
+                f"(Hard Limit: `-{self.currency}{limit:,.2f}`).\n"
+                f"🛡️ *All open positions have been automatically squared off to protect capital.*\n"
+                f"🔒 *Trading is HALTED for the rest of today's session.*"
+            )
+        else:
+            emoji = "🎉"
+            title = "DAILY PROFIT TARGET ACHIEVED — GAINS LOCKED"
+            desc = (
+                f"🚀 *Total daily profit reached `+{self.currency}{total_daily_pnl:,.2f}`* "
+                f"(Daily Target: `+{self.currency}{limit:,.2f}`).\n"
+                f"💰 *All open positions have been automatically squared off to lock in gains.*\n"
+                f"🏖️ *Session completed successfully. No further trades today.*"
+            )
+
+        equity_str = f"\n💼 *Account Equity:* `{self.currency}{equity:,.2f}`" if equity else ""
+        message = (
+            f"{emoji} *TRADEMIND AI — {title}* 🇮🇳\n\n"
+            f"{desc}\n\n"
+            f"📂 *Positions Auto-Closed:* `{closed_count}`\n"
+            f"📈 *Cumulative Daily PnL:* `{sign}{self.currency}{total_daily_pnl:,.2f}`{equity_str}\n"
+            f"⏰ *Triggered At:* `{now_ist}`"
+        )
+        self.send_message(message)
+
     def send_eod_square_off_alert(self, closed_count: int, total_pnl: float, equity: float):
         """Dispatches EOD 15:25 IST Auto Square-off summary."""
         now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")

@@ -30,8 +30,9 @@ class Settings:
     # Virtual Portfolio (INR) - Scaled to ₹30,000 Capital for NIFTY F&O
     INITIAL_BALANCE: float = max(30000.0, float(os.getenv("INITIAL_BALANCE", "30000.0")))
     MAX_POSITION_SIZE_RATIO: float = float(os.getenv("MAX_POSITION_SIZE_RATIO", "0.35"))  # Max 35% margin per trade
-    STOP_LOSS_PERCENT: float = float(os.getenv("STOP_LOSS_PERCENT", "0.015"))            # 1.5% stop loss
-    TAKE_PROFIT_PERCENT: float = float(os.getenv("TAKE_PROFIT_PERCENT", "0.035"))        # 3.5% take profit
+    ENABLE_PER_TRADE_SL_TP: bool = os.getenv("ENABLE_PER_TRADE_SL_TP", "false").strip().lower() in ["true", "1", "yes"]  # Allow trades to run freely; daily limits govern total PnL
+    STOP_LOSS_PERCENT: float = float(os.getenv("STOP_LOSS_PERCENT", "0.015"))            # Optional per-trade SL
+    TAKE_PROFIT_PERCENT: float = float(os.getenv("TAKE_PROFIT_PERCENT", "0.035"))        # Optional per-trade TP
     
     # NIFTY 50 Futures & Options (F&O) & Daily Circuit Configuration
     MAX_DAILY_TRADES: int = int(os.getenv("MAX_DAILY_TRADES", "4"))                      # Max 3-4 trades per day

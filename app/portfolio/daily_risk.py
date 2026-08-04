@@ -64,13 +64,22 @@ class DailyRiskManager:
                 return True, msg
         return False, "OK"
 
+    def is_daily_loss_breached(self, total_pnl: float) -> bool:
+        """Returns True if total cumulative daily PnL breaches max daily loss limit."""
+        return total_pnl <= -self.max_daily_loss
+
+    def is_daily_profit_breached(self, total_pnl: float) -> bool:
+        """Returns True if total cumulative daily PnL reaches or exceeds max daily profit target."""
+        return total_pnl >= self.max_daily_profit
+
     def get_daily_trade_stats(
         self,
         db: Optional[Session] = None,
         current_datetime: Optional[datetime] = None,
-        symbol: Optional[str] = None
+        symbol: Optional[str] = None,
+        current_prices: Optional[Dict[str, float]] = None
     ) -> Dict[str, Any]:
-        """Calculates today's trade count, realized PnL, unrealized PnL, and circuit / expiry status."""
+        """Calculates today's trade count, realized PnL, live unrealized PnL, and circuit / expiry status."""
         should_close = False
         if db is None:
             db = SessionLocal()
@@ -104,9 +113,16 @@ class DailyRiskManager:
             closed_today = [t for t in today_trades if t.status == "CLOSED"]
             daily_realized_pnl = sum((t.realized_pnl or 0.0) for t in closed_today)
 
-            # Calculate open unrealized PnL
+            # Calculate open unrealized PnL with current prices if provided
             open_positions = db.query(Position).all()
-            daily_unrealized_pnl = sum((p.unrealized_pnl or 0.0) for p in open_positions)
+            daily_unrealized_pnl = 0.0
+            for p in open_positions:
+                curr_price = (current_prices or {}).get(p.symbol, p.current_price or p.average_entry_price)
+                cost = (p.quantity or 0.0) * (p.average_entry_price or 0.0)
+                mkt_val = (p.quantity or 0.0) * curr_price
+                unrealized = mkt_val - cost
+                daily_unrealized_pnl += unrealized
+
             total_daily_pnl = daily_realized_pnl + daily_unrealized_pnl
 
             # Determine Circuit Status

@@ -124,3 +124,77 @@ def test_pre_market_and_startup_reconciliation():
     assert summary_clean["initial_balance"] == 30000.0
     assert summary_clean["cash_balance"] == 30000.0
     assert summary_clean["total_equity"] == 30000.0
+
+
+def test_unbounded_single_trade_profit_and_loss():
+    """Validates that a single trade is not prematurely clipped by small SL/TP caps and can run freely."""
+    engine = PortfolioEngine()
+    engine.reset_portfolio()
+
+    symbol = "NIFTY 24800 CE"
+    # Execute buy order without explicit SL/TP
+    engine.execute_buy(symbol=symbol, price=100.0, strategy="TrendStrategy", bypass_circuit=True)
+    pos = engine.get_position(symbol)
+    assert pos is not None
+    # Without ENABLE_PER_TRADE_SL_TP, stop_loss and take_profit are None
+    assert pos.stop_loss is None
+    assert pos.take_profit is None
+
+    # Price moves +20% up: should NOT be auto closed
+    closed = engine.check_stop_loss_take_profit({symbol: 120.0})
+    assert len(closed) == 0
+    assert engine.get_position(symbol) is not None
+
+
+def test_portfolio_daily_stop_loss_circuit_auto_square_off():
+    """Validates that when portfolio total daily loss hits <= -₹2,000, all open positions are auto squared off."""
+    engine = PortfolioEngine()
+    engine.reset_portfolio()
+
+    symbol = "NIFTY 24800 CE"
+    # Buy 2 lots (130 units) at ₹100.0 (gross cost ₹13,000)
+    engine.execute_buy(symbol=symbol, price=100.0, strategy="TrendStrategy", bypass_circuit=True)
+    pos = engine.get_position(symbol)
+    assert pos is not None
+    qty = pos.quantity
+
+    # Simulate market drop where unrealized loss breaches -₹2,000 (e.g. price drops to ₹50 -> loss = 65 * -50 = -₹3,250)
+    crash_price = 50.0
+    closed = engine.check_stop_loss_take_profit({symbol: crash_price})
+    assert len(closed) == 1
+    assert closed[0]["symbol"] == symbol
+    assert "Daily Stop-Loss Circuit" in closed[0]["reason"]
+    assert engine.get_position(symbol) is None
+
+    # Confirm daily risk status is HALTED_MAX_LOSS
+    summary = engine.get_portfolio_summary()
+    assert summary["open_positions_count"] == 0
+    assert summary["daily_risk"]["circuit_status"] == "HALTED_MAX_LOSS"
+    assert summary["daily_risk"]["can_trade"] is False
+
+
+def test_portfolio_daily_profit_target_circuit_auto_square_off():
+    """Validates that when portfolio total daily profit hits >= +₹4,000, all open positions are auto squared off to lock gains."""
+    engine = PortfolioEngine()
+    engine.reset_portfolio()
+
+    symbol = "NIFTY 24800 CE"
+    # Buy 1 lot (65 units) at ₹100.0
+    engine.execute_buy(symbol=symbol, price=100.0, strategy="TrendStrategy", bypass_circuit=True)
+    pos = engine.get_position(symbol)
+    assert pos is not None
+
+    # Simulate huge rally where profit reaches >= +₹4,000 (e.g. price rises to ₹170 -> profit = 65 * 70 = +₹4,550)
+    rally_price = 170.0
+    closed = engine.check_stop_loss_take_profit({symbol: rally_price})
+    assert len(closed) == 1
+    assert closed[0]["symbol"] == symbol
+    assert "Daily Profit Target" in closed[0]["reason"]
+    assert engine.get_position(symbol) is None
+
+    # Confirm daily risk status is HALTED_MAX_PROFIT
+    summary = engine.get_portfolio_summary()
+    assert summary["open_positions_count"] == 0
+    assert summary["daily_risk"]["circuit_status"] == "HALTED_MAX_PROFIT"
+    assert summary["daily_risk"]["can_trade"] is False
+

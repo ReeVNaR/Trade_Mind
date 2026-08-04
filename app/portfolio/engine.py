@@ -322,8 +322,8 @@ class PortfolioEngine:
                     current_price=price,
                     highest_price=price,
                     trailing_stop=None,
-                    stop_loss=stop_loss or (price * (1 - settings.STOP_LOSS_PERCENT)),
-                    take_profit=take_profit or (price * (1 + settings.TAKE_PROFIT_PERCENT)),
+                    stop_loss=stop_loss or ((price * (1 - settings.STOP_LOSS_PERCENT)) if settings.ENABLE_PER_TRADE_SL_TP else None),
+                    take_profit=take_profit or ((price * (1 + settings.TAKE_PROFIT_PERCENT)) if settings.ENABLE_PER_TRADE_SL_TP else None),
                     strategy=strategy
                 )
                 db.add(pos)
@@ -368,83 +368,73 @@ class PortfolioEngine:
         price: float,
         reason: str = ""
     ) -> Optional[Dict[str, Any]]:
-        """Executes a paper SELL order in ₹ INR with 1:1 realistic Indian statutory charges."""
-        if price <= 0:
-            return None
-
+        """
+        Executes a paper SELL / EXIT order, deducting Indian statutory charges (STT, GST, etc.)
+        and updating cash, equity, and realized PnL.
+        """
         db: Session = SessionLocal()
         try:
             pos = db.query(Position).filter(Position.symbol == symbol).first()
-            if not pos or pos.quantity <= 0:
-                logger.info(f"No open position to sell for {symbol}")
+            if not pos:
+                logger.warning(f"No open position found for {symbol} to sell.")
                 return None
 
-            quantity = pos.quantity
-            # Apply 0.05% slippage on exit
-            effective_price = price * 0.9995
-            gross_proceeds = quantity * effective_price
+            snapshot = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.id.desc()).first()
+            cash = snapshot.cash_balance if snapshot else settings.INITIAL_BALANCE
+            realized_pnl_accum = snapshot.total_realized_pnl if snapshot else 0.0
+
+            gross_proceeds = pos.quantity * price
             charges = self.calculate_indian_statutory_charges(gross_proceeds, is_buy=False)
             net_proceeds = gross_proceeds - charges
 
-            cost_basis = quantity * pos.average_entry_price
+            cost_basis = pos.quantity * pos.average_entry_price
             realized_pnl = net_proceeds - cost_basis
             pnl_percent = (realized_pnl / cost_basis * 100.0) if cost_basis > 0 else 0.0
 
-            snapshot = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.id.desc()).first()
-            current_cash = snapshot.cash_balance if snapshot else settings.INITIAL_BALANCE
-            prev_total_pnl = snapshot.total_realized_pnl if snapshot else 0.0
+            new_cash = cash + net_proceeds
+            new_realized_pnl_accum = realized_pnl_accum + realized_pnl
 
-            new_cash = current_cash + net_proceeds
-            new_total_pnl = prev_total_pnl + realized_pnl
+            # Update Open Trade Record
+            trade = db.query(Trade).filter(Trade.symbol == symbol, Trade.status == "OPEN").order_by(Trade.id.desc()).first()
+            if trade:
+                trade.exit_price = price
+                trade.realized_pnl = realized_pnl
+                trade.pnl_percent = pnl_percent
+                trade.status = "CLOSED"
+                trade.reason = f"{reason} (Taxes/Charges: ₹{charges:.2f})".strip()
+            else:
+                trade = Trade(
+                    symbol=symbol,
+                    side="SELL",
+                    quantity=pos.quantity,
+                    entry_price=pos.average_entry_price,
+                    exit_price=price,
+                    realized_pnl=realized_pnl,
+                    pnl_percent=pnl_percent,
+                    strategy=pos.strategy,
+                    status="CLOSED",
+                    reason=f"{reason} (Taxes/Charges: ₹{charges:.2f})".strip()
+                )
+                db.add(trade)
 
             # Remove open position
             db.delete(pos)
 
-            # Close existing open trade in DB
-            open_trade = db.query(Trade).filter(
-                Trade.symbol == symbol,
-                Trade.status == "OPEN"
-            ).order_by(Trade.id.desc()).first()
-
-            exit_reason = f"{reason} (STT & Charges: ₹{charges:.2f})"
-            if open_trade:
-                open_trade.exit_price = effective_price
-                open_trade.status = "CLOSED"
-                open_trade.realized_pnl = realized_pnl
-                open_trade.pnl_percent = pnl_percent
-                open_trade.closed_at = datetime.utcnow()
-                open_trade.reason = f"{open_trade.reason or ''} | Exit: {exit_reason}".strip(" |")
-            else:
-                open_trade = Trade(
-                    symbol=symbol,
-                    side="SELL",
-                    quantity=quantity,
-                    entry_price=pos.average_entry_price,
-                    exit_price=effective_price,
-                    status="CLOSED",
-                    realized_pnl=realized_pnl,
-                    pnl_percent=pnl_percent,
-                    reason=exit_reason,
-                    closed_at=datetime.utcnow()
-                )
-                db.add(open_trade)
-
-            # Update Snapshot
+            # Update Portfolio Snapshot
             new_snapshot = PortfolioSnapshot(
                 cash_balance=new_cash,
                 equity=new_cash,
-                open_positions_count=db.query(Position).count() - 1,
-                total_realized_pnl=new_total_pnl
+                open_positions_count=db.query(Position).count(),
+                total_realized_pnl=new_realized_pnl_accum
             )
             db.add(new_snapshot)
             db.commit()
 
-            pnl_sign = "+" if realized_pnl >= 0 else ""
             logger.info(
-                f"🚨 EXECUTED SELL: {quantity:.0f} {symbol} @ ₹{effective_price:,.2f} | "
-                f"Net PnL (After ₹{charges:.2f} Taxes): {pnl_sign}₹{realized_pnl:,.2f} ({pnl_sign}{pnl_percent:.2f}%)"
+                f"🛑 EXECUTED SELL: {pos.quantity:.0f} {symbol} @ ₹{price:,.2f} | "
+                f"Realized PnL: ₹{realized_pnl:,.2f} ({pnl_percent:+.2f}%) | Charges: ₹{charges:.2f}"
             )
-            return open_trade.to_dict()
+            return trade.to_dict()
 
         except Exception as e:
             logger.error(f"Error executing sell order for {symbol}: {e}")
@@ -455,50 +445,91 @@ class PortfolioEngine:
 
     def check_stop_loss_take_profit(self, current_prices: Dict[str, float]) -> List[Dict[str, Any]]:
         """
-        Scans open positions, applies Dynamic Trailing Stop-Loss (TSL) to let profits run,
-        and triggers automatic exit if SL or TP thresholds are breached.
+        Monitors open positions against:
+        1. Portfolio-Wide Daily Stop-Loss Circuit (-₹2,000) -> Auto squares off ALL positions.
+        2. Portfolio-Wide Daily Profit Target Circuit (+₹4,000) -> Auto squares off ALL positions to lock gains.
+        3. Dynamic Trailing Stop-Loss (TSL) & explicit per-trade targets (if active).
         """
         closed_trades = []
         positions_to_close = []
+        circuit_type = None
+        total_daily_pnl = 0.0
+        circuit_limit = 0.0
+
         db: Session = SessionLocal()
         try:
             positions = db.query(Position).all()
+            if not positions:
+                return []
+
+            # 1. Update live prices & position state
             for pos in positions:
                 price = current_prices.get(pos.symbol)
-                if not price:
-                    continue
+                if price:
+                    pos.current_price = price
+                    if not pos.highest_price or price > pos.highest_price:
+                        pos.highest_price = price
+                    market_val = pos.quantity * price
+                    cost_basis = pos.quantity * pos.average_entry_price
+                    pos.unrealized_pnl = market_val - cost_basis
 
-                pos.current_price = price
-                # Track highest price recorded during trade lifecycle
-                if not pos.highest_price or price > pos.highest_price:
-                    pos.highest_price = price
+            db.commit()
 
-                # --- Dynamic Trailing Stop-Loss (TSL) ---
-                # When profit >= 1.5%, ratchet trailing stop to protect gains
-                profit_from_entry_pct = ((price - pos.average_entry_price) / pos.average_entry_price) * 100.0
-                if profit_from_entry_pct >= 1.5:
-                    trail_level = max(pos.average_entry_price * 1.008, pos.highest_price * 0.98)
-                    if not pos.trailing_stop or trail_level > pos.trailing_stop:
-                        pos.trailing_stop = trail_level
-                        pos.stop_loss = max(pos.stop_loss or 0.0, trail_level)
-                        logger.info(f"📈 Trailing Stop-Loss ratcheted for {pos.symbol} to ₹{trail_level:,.2f} (Peak ₹{pos.highest_price:,.2f})")
+            # 2. Check Daily Risk Circuit Status across the entire portfolio
+            daily_stats = daily_risk_manager.get_daily_trade_stats(db, current_prices=current_prices)
+            total_daily_pnl = daily_stats.get("total_daily_pnl", 0.0)
 
-                # Check SL / Trailing Stop Trigger
-                if pos.stop_loss and price <= pos.stop_loss:
-                    is_tsl = bool(pos.trailing_stop and pos.stop_loss >= pos.average_entry_price)
-                    if is_tsl:
-                        exit_msg = f"Trailing Stop-Loss triggered at ₹{price:.2f} (Locked Gain from peak ₹{pos.highest_price:.2f})"
-                        logger.info(f"🛡️ {exit_msg} for {pos.symbol}")
-                    else:
-                        exit_msg = f"Stop-Loss hit at ₹{price:.2f} (SL: ₹{pos.stop_loss:.2f})"
-                        logger.warning(f"🛑 {exit_msg} for {pos.symbol}")
+            # A. Daily Stop-Loss Breached (e.g. daily loss reaches or exceeds -₹2,000)
+            if daily_risk_manager.is_daily_loss_breached(total_daily_pnl):
+                circuit_type = "MAX_LOSS"
+                circuit_limit = settings.MAX_DAILY_LOSS
+                circuit_msg = f"🛑 Daily Stop-Loss Circuit Triggered (Daily PnL: ₹{total_daily_pnl:,.2f} <= -₹{settings.MAX_DAILY_LOSS:,.2f})"
+                logger.warning(f"{circuit_msg}. Auto squaring off ALL {len(positions)} open positions to protect capital!")
+                for pos in positions:
+                    price = current_prices.get(pos.symbol, pos.current_price or pos.average_entry_price)
+                    positions_to_close.append((pos.symbol, price, circuit_msg))
 
-                    positions_to_close.append((pos.symbol, price, exit_msg))
+            # B. Daily Profit Target Breached (e.g. daily profit reaches or exceeds +₹4,000)
+            elif daily_risk_manager.is_daily_profit_breached(total_daily_pnl):
+                circuit_type = "MAX_PROFIT"
+                circuit_limit = settings.MAX_DAILY_PROFIT
+                circuit_msg = f"🎉 Daily Profit Target Hit (Daily PnL: +₹{total_daily_pnl:,.2f} >= +₹{settings.MAX_DAILY_PROFIT:,.2f})"
+                logger.info(f"{circuit_msg}. Auto squaring off ALL {len(positions)} open positions to lock gains!")
+                for pos in positions:
+                    price = current_prices.get(pos.symbol, pos.current_price or pos.average_entry_price)
+                    positions_to_close.append((pos.symbol, price, circuit_msg))
 
-                # Check Take-Profit Trigger
-                elif pos.take_profit and price >= pos.take_profit:
-                    logger.info(f"🎯 Take-Profit reached for {pos.symbol} at ₹{price:.2f} (TP: ₹{pos.take_profit:.2f})")
-                    positions_to_close.append((pos.symbol, price, f"Take-Profit reached (₹{pos.take_profit:.2f})"))
+            # C. No Daily Circuit Breached -> Check Dynamic Trailing Stop or explicit SL/TP
+            else:
+                for pos in positions:
+                    price = current_prices.get(pos.symbol)
+                    if not price:
+                        continue
+
+                    # Dynamic Trailing Stop-Loss (TSL): Ratchets protection upward while allowing unlimited upside
+                    profit_from_entry_pct = ((price - pos.average_entry_price) / pos.average_entry_price) * 100.0
+                    if profit_from_entry_pct >= 1.5:
+                        trail_level = max(pos.average_entry_price * 1.008, pos.highest_price * 0.98)
+                        if not pos.trailing_stop or trail_level > pos.trailing_stop:
+                            pos.trailing_stop = trail_level
+                            pos.stop_loss = max(pos.stop_loss or 0.0, trail_level)
+                            logger.info(f"📈 Trailing Stop-Loss ratcheted for {pos.symbol} to ₹{trail_level:,.2f} (Peak ₹{pos.highest_price:,.2f})")
+
+                    # Check explicit SL / Trailing Stop Trigger
+                    if pos.stop_loss and price <= pos.stop_loss:
+                        is_tsl = bool(pos.trailing_stop and pos.stop_loss >= pos.average_entry_price)
+                        if is_tsl:
+                            exit_msg = f"Trailing Stop-Loss triggered at ₹{price:.2f} (Locked Gain from peak ₹{pos.highest_price:.2f})"
+                            logger.info(f"🛡️ {exit_msg} for {pos.symbol}")
+                        else:
+                            exit_msg = f"Stop-Loss hit at ₹{price:.2f} (SL: ₹{pos.stop_loss:.2f})"
+                            logger.warning(f"🛑 {exit_msg} for {pos.symbol}")
+                        positions_to_close.append((pos.symbol, price, exit_msg))
+
+                    # Check explicit Take-Profit Trigger
+                    elif pos.take_profit and price >= pos.take_profit:
+                        logger.info(f"🎯 Take-Profit reached for {pos.symbol} at ₹{price:.2f} (TP: ₹{pos.take_profit:.2f})")
+                        positions_to_close.append((pos.symbol, price, f"Take-Profit reached (₹{pos.take_profit:.2f})"))
 
             db.commit()
         finally:
@@ -509,16 +540,32 @@ class PortfolioEngine:
             trade = self.execute_sell(sym, p, reason=msg)
             if trade:
                 closed_trades.append(trade)
-                try:
-                    from app.telegram.bot import telegram_service
-                    summary = self.get_portfolio_summary()
-                    telegram_service.send_bot_exit_alert(
-                        trade=trade,
-                        exit_reason=msg,
-                        equity=summary.get("total_equity")
-                    )
-                except Exception as e:
-                    logger.error(f"Error sending exit Telegram alert: {e}")
+                if not circuit_type:
+                    try:
+                        from app.telegram.bot import telegram_service
+                        summary = self.get_portfolio_summary()
+                        telegram_service.send_bot_exit_alert(
+                            trade=trade,
+                            exit_reason=msg,
+                            equity=summary.get("total_equity")
+                        )
+                    except Exception as e:
+                        logger.error(f"Error sending exit Telegram alert: {e}")
+
+        # If a portfolio-wide daily circuit triggered auto square-off, broadcast dedicated circuit alert
+        if circuit_type and closed_trades:
+            try:
+                from app.telegram.bot import telegram_service
+                summary = self.get_portfolio_summary()
+                telegram_service.send_daily_circuit_square_off_alert(
+                    circuit_type=circuit_type,
+                    total_daily_pnl=total_daily_pnl,
+                    limit=circuit_limit,
+                    closed_count=len(closed_trades),
+                    equity=summary.get("total_equity")
+                )
+            except Exception as e:
+                logger.error(f"Error sending daily circuit Telegram alert: {e}")
 
         return closed_trades
 
