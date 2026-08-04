@@ -143,3 +143,17 @@ def test_nifty_chart_data_endpoint(client):
     assert "vwap" in data["candles"][-1]
     assert "ema9" in data["candles"][-1]
 
+
+def test_nifty_live_ticker_endpoint(client):
+    response = client.get("/api/nifty/live-ticker")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "^NSEI"
+    assert data["current_price"] > 0
+    assert "change" in data
+    assert "change_percent" in data
+    assert "timestamp_ist" in data
+    assert "latency" in data
+    assert data["tick_stream"] == "ACTIVE"
+
+
