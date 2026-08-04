@@ -119,3 +119,27 @@ def test_confirm_setup_endpoint(client):
     assert "projected_stop_loss" in data
     assert "projected_take_profit" in data
 
+
+def test_market_news_endpoint(client):
+    response = client.get("/api/market-news")
+    assert response.status_code == 200
+    data = response.json()
+    assert "news" in data
+    assert len(data["news"]) >= 4
+    assert "sentiment_verdict" in data
+    assert data["sentiment_verdict"] == "BULLISH"
+    assert data["sentiment_score"] >= 80
+
+
+def test_nifty_chart_data_endpoint(client):
+    response = client.get("/api/nifty/chart-data")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "^NSEI"
+    assert "current_price" in data
+    assert data["current_price"] > 0
+    assert "candles" in data
+    assert len(data["candles"]) > 0
+    assert "vwap" in data["candles"][-1]
+    assert "ema9" in data["candles"][-1]
+

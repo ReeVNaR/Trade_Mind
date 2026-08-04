@@ -195,21 +195,21 @@ class DataFetcher:
         if hist.empty:
             hist = ticker.history(period="1mo", interval="1d")
         
+        hist.dropna(subset=["Close"], inplace=True)
         if hist.empty:
             if norm_symbol in self._trace_cache:
                 return self._trace_cache[norm_symbol]["trace"]
             raise ValueError(f"Unable to trace live exchange data for '{norm_symbol}'.")
 
-
         last_row = hist.iloc[-1]
         prev_row = hist.iloc[-2] if len(hist) > 1 else last_row
 
-        curr_price = float(last_row["Close"])
-        prev_close = float(prev_row["Close"])
-        open_price = float(last_row["Open"])
-        day_high = float(last_row["High"])
-        day_low = float(last_row["Low"])
-        volume = float(last_row["Volume"])
+        curr_price = float(last_row["Close"]) if pd.notna(last_row["Close"]) else 0.0
+        prev_close = float(prev_row["Close"]) if pd.notna(prev_row["Close"]) else curr_price
+        open_price = float(last_row["Open"]) if pd.notna(last_row["Open"]) else curr_price
+        day_high = float(last_row["High"]) if pd.notna(last_row["High"]) else curr_price
+        day_low = float(last_row["Low"]) if pd.notna(last_row["Low"]) else curr_price
+        volume = float(last_row["Volume"]) if pd.notna(last_row["Volume"]) else 0.0
 
         change = curr_price - prev_close
         change_pct = (change / prev_close) * 100.0 if prev_close else 0.0
