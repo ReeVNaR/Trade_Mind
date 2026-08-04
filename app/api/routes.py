@@ -292,20 +292,23 @@ def get_nifty_chart_data():
 
 
 
-@router.get("/api/indian-stocks")
-def get_curated_stocks():
-    """Returns curated stocks and benchmarks list."""
-    return data_fetcher.get_curated_indian_stocks()
+@router.get("/api/nifty/universe")
+def get_nifty_universe():
+    """Returns NIFTY 50 Index & F&O derivatives universe metadata."""
+    return [
+        {"symbol": "^NSEI", "name": "NIFTY 50 Index", "exchange": "NSE", "type": "Index"},
+        {"symbol": "^NSEBANK", "name": "NIFTY Bank Index", "exchange": "NSE", "type": "Index"}
+    ]
 
 
 @router.get("/api/trace/{symbol}")
 def trace_live_stock(symbol: str):
-    """Traces real-time live stock metrics, exchange data, and technical indicators for an Indian equity."""
+    """Traces real-time live metrics, exchange data, and technical indicators for NIFTY 50."""
     norm_symbol = normalize_indian_symbol(symbol)
     if not is_indian_symbol(norm_symbol):
         raise HTTPException(
             status_code=400,
-            detail=f"'{symbol}' is not an Indian stock. Only NSE/BSE equities (e.g. RELIANCE.NS, ^NSEI) are supported."
+            detail=f"'{symbol}' is rejected. Only NIFTY 50 Index & F&O derivatives (e.g. ^NSEI, NIFTY 24750 CE) are supported."
         )
 
     try:
@@ -349,13 +352,13 @@ def trace_live_stock(symbol: str):
 @router.get("/api/confirm-setup/{symbol}")
 def confirm_trade_setup(symbol: str):
     """
-    Performs comprehensive 6-factor confluence & AI confirmation on NIFTY or Indian setups.
+    Performs comprehensive 6-factor confluence & AI confirmation on NIFTY 50 Index.
     """
     norm_symbol = normalize_indian_symbol(symbol)
     if not is_indian_symbol(norm_symbol):
         raise HTTPException(
             status_code=400,
-            detail=f"'{norm_symbol}' is not a valid Indian Stock Market (NSE/BSE) symbol."
+            detail=f"'{norm_symbol}' is rejected. Only NIFTY 50 Index & F&O derivatives are supported."
         )
 
     try:
@@ -511,12 +514,12 @@ def trigger_market_scan(background_tasks: BackgroundTasks):
 
 @router.post("/api/analyze/{symbol}")
 def analyze_symbol(symbol: str):
-    """Runs instant multi-indicator and Gemini AI analysis on an Indian symbol."""
+    """Runs instant multi-indicator and Gemini AI analysis on NIFTY 50."""
     norm_symbol = normalize_indian_symbol(symbol)
     if not is_indian_symbol(norm_symbol):
         raise HTTPException(
             status_code=400,
-            detail=f"'{symbol}' is rejected. Only Indian Stock Market (NSE/BSE) equities are supported."
+            detail=f"'{symbol}' is rejected. Only NIFTY 50 Index & F&O derivatives are supported."
         )
 
     df = data_fetcher.fetch_ohlcv(norm_symbol, period="15d", interval="1h")
@@ -544,12 +547,12 @@ def analyze_symbol(symbol: str):
 
 @router.post("/api/backtest")
 def run_backtest_endpoint(req: BacktestRequest):
-    """Executes historical backtest on specified symbol and strategy."""
+    """Executes historical backtest on specified NIFTY strategy."""
     norm_symbol = normalize_indian_symbol(req.symbol)
     if not is_indian_symbol(norm_symbol):
         raise HTTPException(
             status_code=400,
-            detail="Only Indian Stock Market (NSE/BSE) symbols are supported for backtesting."
+            detail="Only NIFTY 50 Index & F&O derivatives are supported for backtesting."
         )
 
     result = backtest_engine.run_backtest(

@@ -11,25 +11,7 @@ from app.utils.logger import logger
 # Indian Standard Time (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
 
-INDIAN_COMPANY_NAMES: Dict[str, str] = {
-    "RELIANCE.NS": "Reliance Industries Ltd",
-    "TCS.NS": "Tata Consultancy Services",
-    "INFY.NS": "Infosys Ltd",
-    "HDFCBANK.NS": "HDFC Bank Ltd",
-    "ICICIBANK.NS": "ICICI Bank Ltd",
-    "M&M.NS": "Mahindra & Mahindra Ltd",
-    "SBIN.NS": "State Bank of India",
-    "BHARTIARTL.NS": "Bharti Airtel Ltd",
-    "ITC.NS": "ITC Ltd",
-    "LT.NS": "Larsen & Toubro Ltd",
-    "KOTAKBANK.NS": "Kotak Mahindra Bank",
-    "AXISBANK.NS": "Axis Bank Ltd",
-    "MARUTI.NS": "Maruti Suzuki India",
-    "BAJFINANCE.NS": "Bajaj Finance Ltd",
-    "ASIANPAINT.NS": "Asian Paints Ltd",
-    "WIPRO.NS": "Wipro Ltd",
-    "SUNPHARMA.NS": "Sun Pharmaceutical",
-    "TITAN.NS": "Titan Company Ltd",
+NIFTY_INDEX_NAMES: Dict[str, str] = {
     "^NSEI": "NIFTY 50 Index",
     "^NSEBANK": "NIFTY Bank Index",
 }
@@ -80,8 +62,8 @@ MarketData = LiveStockTrace
 
 class DataFetcher:
     """
-    High-Performance Real-Time Market Data Engine for Indian Equities (NSE / BSE).
-    Features in-memory TTL caching and parallel multi-symbol resolution.
+    High-Performance Real-Time Market Data Engine for NIFTY 50 Index (^NSEI) & F&O Derivatives.
+    Features in-memory TTL caching and ultra-low latency execution.
     """
 
     def __init__(self):
@@ -141,19 +123,22 @@ class DataFetcher:
 
     def fetch_ohlcv(
         self,
-        symbol: str,
+        symbol: str = "^NSEI",
         period: str = "30d",
         interval: str = "1h"
     ) -> pd.DataFrame:
         """
-        Fetches genuine historical OHLCV candles from NSE/BSE exchange via Yahoo Finance.
+        Fetches genuine historical OHLCV candles for NIFTY 50 Index from NSE via Yahoo Finance.
         """
         norm_symbol = normalize_indian_symbol(symbol)
         if not is_indian_symbol(norm_symbol):
-            raise ValueError(f"'{symbol}' is not an Indian Stock Market symbol. Only NSE/BSE stocks are supported.")
+            raise ValueError(f"'{symbol}' is not a supported NIFTY symbol. Only NIFTY 50 (^NSEI) is supported.")
+
+        # Options / derivative symbols map to underlying NIFTY 50 index for candle technicals
+        fetch_sym = "^NSEI" if norm_symbol.startswith("NIFTY") else norm_symbol
 
         try:
-            ticker = yf.Ticker(norm_symbol)
+            ticker = yf.Ticker(fetch_sym)
             df = ticker.history(period=period, interval=interval)
             
             if df.empty or len(df) < 2:
@@ -176,29 +161,31 @@ class DataFetcher:
             logger.error(f"Live exchange data fetch error for {norm_symbol}: {e}")
             raise
 
-    def trace_live_stock(self, symbol: str) -> LiveStockTrace:
+    def trace_live_stock(self, symbol: str = "^NSEI") -> LiveStockTrace:
         """
-        Traces live real-time metrics for an Indian stock with fast memory caching.
+        Traces live real-time metrics for NIFTY 50 Index with fast memory caching.
         """
         norm_symbol = normalize_indian_symbol(symbol)
         if not is_indian_symbol(norm_symbol):
-            raise ValueError(f"'{symbol}' is rejected. Only Indian Stock Market (NSE/BSE) equities are supported.")
+            raise ValueError(f"'{symbol}' is rejected. Only NIFTY 50 Index & F&O derivatives are supported.")
+
+        fetch_sym = "^NSEI" if norm_symbol.startswith("NIFTY") else norm_symbol
 
         now_ts = datetime.utcnow().timestamp()
-        if norm_symbol in self._trace_cache:
-            entry = self._trace_cache[norm_symbol]
+        if fetch_sym in self._trace_cache:
+            entry = self._trace_cache[fetch_sym]
             if (now_ts - entry["cached_at"]) < self._cache_ttl_seconds:
                 return entry["trace"]
 
-        ticker = yf.Ticker(norm_symbol)
+        ticker = yf.Ticker(fetch_sym)
         hist = ticker.history(period="5d", interval="1d")
         if hist.empty:
             hist = ticker.history(period="1mo", interval="1d")
         
         hist.dropna(subset=["Close"], inplace=True)
         if hist.empty:
-            if norm_symbol in self._trace_cache:
-                return self._trace_cache[norm_symbol]["trace"]
+            if fetch_sym in self._trace_cache:
+                return self._trace_cache[fetch_sym]["trace"]
             raise ValueError(f"Unable to trace live exchange data for '{norm_symbol}'.")
 
         last_row = hist.iloc[-1]
@@ -223,14 +210,13 @@ class DataFetcher:
         except Exception:
             pass
 
-        exchange = "BSE" if norm_symbol.endswith(".BO") else "NSE"
-        company_name = INDIAN_COMPANY_NAMES.get(norm_symbol, norm_symbol.replace(".NS", "").replace(".BO", "") + " Ltd")
+        company_name = NIFTY_INDEX_NAMES.get(fetch_sym, "NIFTY 50 Index & F&O")
         now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M:%S %p IST")
 
         trace = LiveStockTrace(
-            symbol=norm_symbol,
+            symbol=fetch_sym,
             company_name=company_name,
-            exchange=exchange,
+            exchange="NSE",
             current_price=curr_price,
             previous_close=prev_close,
             open_price=open_price,
@@ -246,12 +232,12 @@ class DataFetcher:
             timestamp_ist=now_ist
         )
 
-        self._trace_cache[norm_symbol] = {"cached_at": now_ts, "trace": trace}
-        self._price_cache[norm_symbol] = {"cached_at": now_ts, "price": curr_price}
+        self._trace_cache[fetch_sym] = {"cached_at": now_ts, "trace": trace}
+        self._price_cache[fetch_sym] = {"cached_at": now_ts, "price": curr_price}
         return trace
 
     def get_current_price(self, symbol: str) -> float:
-        """Fetches latest real exchange price for an Indian stock."""
+        """Fetches latest real exchange price for NIFTY or estimates option premium."""
         norm_symbol = normalize_indian_symbol(symbol)
         now_ts = datetime.utcnow().timestamp()
         
@@ -261,6 +247,14 @@ class DataFetcher:
                 return entry["price"]
 
         try:
+            # Handle option contract pricing
+            if norm_symbol.startswith("NIFTY") and ("CE" in norm_symbol or "PE" in norm_symbol):
+                from app.data.nifty_options import get_nifty_itm_strike
+                spot_trace = self.trace_live_stock("^NSEI")
+                opt_type = "CE" if "CE" in norm_symbol else "PE"
+                itm = get_nifty_itm_strike(spot_trace.current_price, opt_type, itm_depth=1)
+                return itm["estimated_premium"]
+
             trace = self.trace_live_stock(norm_symbol)
             return trace.current_price
         except Exception as e:
@@ -271,7 +265,7 @@ class DataFetcher:
 
     def get_bulk_market_data(self, symbols: List[str]) -> List[Dict[str, Any]]:
         """Fetches market data in parallel threads for lightning-fast UI responses."""
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             traces = list(executor.map(lambda s: self._safe_trace(s), symbols))
         return [t.to_dict() for t in traces if t is not None]
 
@@ -280,25 +274,6 @@ class DataFetcher:
             return self.trace_live_stock(sym)
         except Exception:
             return None
-
-    def get_curated_indian_stocks(self) -> List[Dict[str, Any]]:
-        """Returns a list of premier Indian companies across major sectors."""
-        sectors = [
-            {"symbol": "RELIANCE.NS", "name": "Reliance Industries", "sector": "Energy & Conglomerate"},
-            {"symbol": "TCS.NS", "name": "Tata Consultancy Services", "sector": "Information Technology"},
-            {"symbol": "INFY.NS", "name": "Infosys", "sector": "Information Technology"},
-            {"symbol": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking & Finance"},
-            {"symbol": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking & Finance"},
-            {"symbol": "M&M.NS", "name": "Mahindra & Mahindra", "sector": "Automobile"},
-            {"symbol": "SBIN.NS", "name": "State Bank of India", "sector": "Public Sector Banking"},
-            {"symbol": "BHARTIARTL.NS", "name": "Bharti Airtel", "sector": "Telecommunications"},
-            {"symbol": "ITC.NS", "name": "ITC Ltd", "sector": "FMCG & Consumer"},
-            {"symbol": "LT.NS", "name": "Larsen & Toubro", "sector": "Infrastructure & Defense"},
-            {"symbol": "MARUTI.NS", "name": "Maruti Suzuki", "sector": "Automobile"},
-            {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance", "sector": "Financial Services"},
-            {"symbol": "ASIANPAINT.NS", "name": "Asian Paints", "sector": "Paints & Consumer"},
-        ]
-        return sectors
 
     def get_live_nifty_ticker(self) -> Dict[str, Any]:
         """

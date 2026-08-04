@@ -12,15 +12,15 @@ TradeMind-AI is an institutional-grade algorithmic trading and portfolio managem
 
 ## 🌟 Key Capabilities
 
-- 🇮🇳 **Indian Stock Market Specialization**: Real-time tick ingestion and historical OHLCV data for NSE/BSE equities (e.g., `RELIANCE.NS`, `TCS.NS`, `HDFCBANK.NS`, `INFY.NS`, `^NSEI`, `^NSEBANK`).
+- 🇮🇳 **NIFTY 50 Index & F&O Derivatives Specialization**: Real-time tick ingestion and historical OHLCV data strictly for the NIFTY 50 benchmark index (`^NSEI`) and In-The-Money (ITM) option contracts.
 - 📐 **Institutional Quantitative Strategies**:
-  - **Supertrend + VWAP Strategy**: Specially tuned for Indian market volatility and intraday momentum.
-  - **EMA Crossover + MACD Momentum**: 9/21 EMA crossover trend filtering.
+  - **Supertrend + VWAP Strategy**: Specially tuned for NIFTY index volatility and intraday momentum.
+  - **EMA Crossover + MACD Momentum**: 9/21 EMA crossover trend filtering on NIFTY.
   - **RSI + Bollinger Bands Mean Reversion**: Overbought/oversold bounce detection.
-- 🧠 **Google Gemini AI Reasoning**: Multi-factor signal validation reviewing market sentiment, risk-to-reward ratios, and macro catalysts before placing trades.
-- 💼 **Risk-Managed Virtual Portfolio**: Starting capital of **₹2,000 INR**, dynamic 20% max allocation per trade, automated 1.5% stop-loss and 3.5% take-profit safeguards.
-- 📱 **Interactive Telegram Bot**: Instant push notifications for trade entries/exits, AI rationales, and interactive commands (`/status`, `/portfolio`, `/scan`, `/trades`, `/help`).
-- ⚡ **Real-Time Live Web Dashboard & REST API**: Modern dark glassmorphism interface with live stock tracing, on-demand backtesting engine, and manual trade execution.
+- 🧠 **Google Gemini AI Reasoning**: Multi-factor signal validation reviewing NIFTY sentiment, ITM option delta protection, and macro catalysts before placing trades.
+- 💼 **Risk-Managed Virtual Portfolio**: Starting capital of **₹30,000 INR**, max 35% margin per trade, strict daily circuit breaker (Max 4 trades/day, ₹2,000 max loss, ₹4,000 profit target).
+- 📱 **Interactive Telegram Bot**: Push notifications exclusively sent upon actual trade execution (no spam on mere scans), plus interactive commands (`/status`, `/portfolio`, `/scan`, `/trades`, `/help`).
+- ⚡ **Real-Time Live Web Dashboard & REST API**: Modern dark glassmorphism interface with live NIFTY spot ticker, interactive candles, F&O strike scanner, on-demand backtesting engine, and manual trade execution.
 - ☁️ **Cloud Ready**: Configured for instant 1-click deployment on **Render** (free/standard tier) and Docker containers.
 
 ---
@@ -218,13 +218,14 @@ pytest tests/ -v
 
 ---
 
-## 🛡️ Risk Safeguards & Indian Market Rules
-
-1. **Strict Market Filter**: Only verified NSE/BSE equities (e.g. `RELIANCE.NS`, `TCS.NS`, `^NSEI`) can be analyzed or traded.
-2. **Capital Protection**: Never allocates more than 20% of portfolio equity to a single trade.
-3. **Automated Stop Loss (SL)**: 1.5% fixed or ATR-calculated safety exit.
-4. **Automated Take Profit (TP)**: 3.5% reward target.
-5. **AI Conviction Filter**: Technical signals are verified against Gemini AI reasoning before execution.
+## 🛡️ Risk Safeguards & NIFTY Market Rules
+ 
+1. **Strict Market Filter**: Only verified NIFTY 50 Index (`^NSEI`, `^NSEBANK`) and standard NIFTY F&O contracts can be analyzed or traded.
+2. **Capital Protection**: ₹30,000 virtual capital with 35% safe margin per trade and 65-unit lot size.
+3. **Daily Circuit Breakers**: Max 4 trades/day, ₹2,000 max daily loss limit, and ₹4,000 daily profit target lock.
+4. **Expiry Day Protection**: Strictly blocks new buy entries on Expiry Day (Tuesday) after 2:00 PM IST to protect against rapid theta decay and gamma spikes.
+5. **Intraday Square-off**: Automated 15:25 IST EOD square-off and pre-market 09:00 IST reconciliation.
+6. **Execution-Only Alerts**: Telegram signals dispatch strictly upon actual order execution by the bot.
 
 ---
 

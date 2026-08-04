@@ -244,7 +244,8 @@ class PortfolioEngine:
         strategy: str = "manual",
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
-        reason: str = ""
+        reason: str = "",
+        bypass_circuit: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Executes a paper BUY order in ₹ INR with Daily Risk Circuit validation
@@ -255,7 +256,10 @@ class PortfolioEngine:
             return None
 
         # --- Check Daily Risk Circuit Breaker ---
-        can_trade, circuit_msg = daily_risk_manager.can_open_new_trade()
+        can_trade, circuit_msg = daily_risk_manager.can_open_new_trade(
+            symbol=symbol,
+            bypass_circuit=bypass_circuit
+        )
         if not can_trade:
             logger.warning(f"🚫 BUY ORDER REJECTED by Daily Circuit: {circuit_msg}")
             return None
@@ -505,8 +509,72 @@ class PortfolioEngine:
             trade = self.execute_sell(sym, p, reason=msg)
             if trade:
                 closed_trades.append(trade)
+                try:
+                    from app.telegram.bot import telegram_service
+                    summary = self.get_portfolio_summary()
+                    telegram_service.send_bot_exit_alert(
+                        trade=trade,
+                        exit_reason=msg,
+                        equity=summary.get("total_equity")
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending exit Telegram alert: {e}")
 
         return closed_trades
+
+    def run_eod_square_off(self, current_prices: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
+        """
+        End-Of-Day (EOD) Auto Square-Off at 15:25 IST before Indian market close.
+        Closes all open intraday positions to ensure zero overnight risk and clean daily accounting.
+        """
+        closed_trades = []
+        db: Session = SessionLocal()
+        try:
+            positions = db.query(Position).all()
+            if not positions:
+                logger.info("🏁 EOD Square-Off: No open positions to square off.")
+                return []
+
+            logger.info(f"🏁 Initiating Intraday EOD Auto Square-Off for {len(positions)} open positions...")
+            for pos in positions:
+                price = (current_prices or {}).get(pos.symbol, pos.current_price or pos.average_entry_price)
+                trade = self.execute_sell(
+                    symbol=pos.symbol,
+                    price=price,
+                    reason="Intraday EOD Auto Square-Off (15:25 IST)"
+                )
+                if trade:
+                    closed_trades.append(trade)
+        finally:
+            db.close()
+
+        # Send Telegram EOD Square-Off summary if any positions were closed
+        if closed_trades:
+            try:
+                from app.telegram.bot import telegram_service
+                summary = self.get_portfolio_summary()
+                daily_pnl = summary.get("daily_risk", {}).get("total_daily_pnl", 0.0)
+                equity = summary.get("total_equity", settings.INITIAL_BALANCE)
+                telegram_service.send_eod_square_off_alert(
+                    closed_count=len(closed_trades),
+                    total_pnl=daily_pnl,
+                    equity=equity
+                )
+            except Exception as e:
+                logger.error(f"Error dispatching EOD square-off Telegram alert: {e}")
+
+        return closed_trades
+
+    def run_pre_market_reset(self) -> Dict[str, Any]:
+        """
+        Pre-Market Clean State Reconciliation at 09:00 IST.
+        Verifies clean starting state with 0 open positions and full initial capital buffer.
+        """
+        logger.info("🌅 Running Pre-Market Session Readiness Check (09:00 IST)...")
+        init_db(force_reset=settings.AUTO_RESET_DB_ON_START)
+        summary = self.get_portfolio_summary()
+        logger.info(f"✅ Pre-Market Ready: Equity ₹{summary.get('total_equity', 0):,.2f}, Open Positions: {summary.get('open_positions_count', 0)}")
+        return summary
 
     def get_trade_performance_metrics(self, limit: int = 100) -> Dict[str, Any]:
         """Calculates comprehensive trade performance and win-rate metrics for dashboard & Telegram."""

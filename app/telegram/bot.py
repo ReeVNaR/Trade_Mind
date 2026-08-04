@@ -173,6 +173,106 @@ class TelegramService:
         logger.info(f"📢 Broadcasted Telegram notification to {success_count}/{len(recipients)} subscribers.")
         return success_count > 0
 
+    def send_bot_buy_alert(
+        self,
+        trade: Dict[str, Any],
+        strategy: str,
+        ai_result: Optional[Any] = None,
+        spot_price: Optional[float] = None
+    ):
+        """
+        Broadcasts an official BUY execution alert ONLY when the bot actually buys/enters a position.
+        """
+        symbol = trade.get("symbol", "NIFTY")
+        quantity = trade.get("quantity", 0)
+        entry_price = trade.get("entry_price", 0.0)
+        lots = max(1, int(quantity / settings.NIFTY_LOT_SIZE)) if quantity >= settings.NIFTY_LOT_SIZE else 1
+        total_amount = quantity * entry_price
+        sl = trade.get("stop_loss")
+        tp = trade.get("take_profit")
+        sl_str = f"{self.currency}{sl:,.2f}" if sl else "N/A"
+        tp_str = f"{self.currency}{tp:,.2f}" if tp else "N/A"
+        
+        reasoning = ""
+        risk_level = "MODERATE"
+        confidence = 80
+        if ai_result:
+            reasoning = getattr(ai_result, "reasoning", "")
+            risk_level = getattr(ai_result, "risk_level", "MODERATE")
+            conf_val = getattr(ai_result, "confidence_score", 0.8)
+            confidence = int(conf_val * 100) if conf_val <= 1.0 else int(conf_val)
+
+        spot_str = f" (NIFTY Spot: ₹{spot_price:,.2f})" if spot_price else ""
+        now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+        
+        message = (
+            f"⚡ *TRADEMIND AI — ORDER EXECUTED (BOT BOUGHT)* 🇮🇳\n\n"
+            f"🎯 *Contract:* `{symbol}`{spot_str}\n"
+            f"📈 *Action:* 🟢 *BUY (ORDER FILLED)*\n"
+            f"💵 *Executed Premium:* `{self.currency}{entry_price:,.2f}`\n"
+            f"📦 *Position:* `{quantity:.0f} units` ({lots} Lot{'s' if lots > 1 else ''})\n"
+            f"💼 *Capital Deployed:* `{self.currency}{total_amount:,.2f}`\n"
+            f"🛑 *Stop Loss:* `{sl_str}` (-15% SL)\n"
+            f"🎯 *Take Profit:* `{tp_str}` (+35% Target)\n"
+            f"📊 *Strategy:* `{strategy}`\n"
+            f"🔢 *AI Confidence:* `{confidence}%` | Risk: `{risk_level}`\n\n"
+            f"🧠 *Gemini AI Reasoning:*\n"
+            f"_{reasoning or 'High probability trend setup confirmed.'}_\n\n"
+            f"⏰ *Time:* `{now_ist}`\n"
+            f"✅ *Status: ACTIVE TRADE MANAGED BY BOT*"
+        )
+        self.send_message(message)
+
+    def send_bot_exit_alert(
+        self,
+        trade: Dict[str, Any],
+        exit_reason: str = "",
+        equity: Optional[float] = None
+    ):
+        """
+        Broadcasts an official EXIT execution alert when a position is closed by SL, TP, TSL or strategy.
+        """
+        symbol = trade.get("symbol", "NIFTY")
+        quantity = trade.get("quantity", 0)
+        entry_price = trade.get("entry_price", 0.0)
+        exit_price = trade.get("exit_price", 0.0)
+        realized_pnl = trade.get("realized_pnl", 0.0)
+        pnl_pct = trade.get("pnl_percent", 0.0)
+        
+        sign = "+" if realized_pnl >= 0 else ""
+        pnl_emoji = "🟢" if realized_pnl >= 0 else "🛑"
+        header = "PROFIT TARGET SECURED" if realized_pnl > 0 else "RISK MANAGED EXIT"
+        
+        equity_str = f"\n💼 *Updated Account Equity:* `{self.currency}{equity:,.2f}`" if equity else ""
+        now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+        
+        message = (
+            f"{pnl_emoji} *TRADEMIND AI — POSITION CLOSED (BOT EXITED)* 🇮🇳\n\n"
+            f"🎯 *Contract:* `{symbol}`\n"
+            f"🚪 *Side:* SELL / EXIT ({header})\n"
+            f"💵 *Exit Premium:* `{self.currency}{exit_price:,.2f}` (Entry: `{self.currency}{entry_price:,.2f}`)\n"
+            f"🔢 *Quantity:* `{quantity:.0f} units`\n"
+            f"💰 *Net Realized PnL:* `{sign}{self.currency}{realized_pnl:,.2f}` (`{sign}{pnl_pct:.2f}%`)\n"
+            f"📝 *Exit Trigger:* _{exit_reason or trade.get('reason', 'Target/SL hit')}_{equity_str}\n"
+            f"⏰ *Closed At:* `{now_ist}`"
+        )
+        self.send_message(message)
+
+    def send_eod_square_off_alert(self, closed_count: int, total_pnl: float, equity: float):
+        """Dispatches EOD 15:25 IST Auto Square-off summary."""
+        now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+        sign = "+" if total_pnl >= 0 else ""
+        message = (
+            f"🏁 *TRADEMIND AI — INTRADAY EOD AUTO SQUARE-OFF (15:25 IST)* 🇮🇳\n\n"
+            f"🔔 *All open intraday positions have been automatically closed before market close.*\n"
+            f"📂 *Positions Squared Off:* `{closed_count}`\n"
+            f"📈 *Final Daily Realized PnL:* `{sign}{self.currency}{total_pnl:,.2f}`\n"
+            f"💼 *Account Capital:* `{self.currency}{equity:,.2f}`\n"
+            f"⏰ *Completed At:* `{now_ist}`\n\n"
+            f"✨ *Clean slate ready for next trading session!*"
+        )
+        self.send_message(message)
+
     def send_trade_signal_alert(
         self,
         symbol: str,
@@ -186,32 +286,8 @@ class TelegramService:
         risk_level: str = "MODERATE",
         ai_confirmed: bool = True
     ):
-        """Broadcasts a rich NIFTY F&O trading signal alert to ALL bot subscribers."""
-        action_emoji = "🟢 *BUY (ITM CALL / CE)*" if action.upper() == "BUY" else "🔴 *BUY (ITM PUT / PE)*"
-        status_tag = "✅ *CONFIRMED & ROUTED*" if ai_confirmed else "⚠️ *UNCONFIRMED / VETOED*"
-        now_ist = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
-
-        sl_str = f"{self.currency}{stop_loss:,.2f}" if stop_loss else "N/A"
-        tp_str = f"{self.currency}{take_profit:,.2f}" if take_profit else "N/A"
-
-        message = (
-            f"⚡ *TRADEMIND AI — NIFTY 50 F&O SIGNAL* ⚡\n\n"
-            f"🎯 *Contract:* `{symbol}`\n"
-            f"📈 *Direction:* {action_emoji}\n"
-            f"💵 *Est. Premium:* `{self.currency}{price:,.2f}`\n"
-            f"📦 *Lot Size:* `{settings.NIFTY_LOT_SIZE} units`\n"
-            f"📊 *Strategy:* `{strategy}`\n"
-            f"🔢 *Confidence:* `{confidence * 100:.0f}%`\n"
-            f"🛑 *Stop Loss:* `{sl_str}` (Max ₹2,000 daily SL floor)\n"
-            f"🎯 *Take Profit:* `{tp_str}` (Max ₹4,000 daily target)\n"
-            f"⏰ *Time:* `{now_ist}`\n\n"
-            f"🧠 *Gemini AI Reasoning:*\n"
-            f"_{ai_reasoning or 'High conviction Nifty trend setup confirmed.'}_\n\n"
-            f"🛡️ *Risk Level:* `{risk_level}`\n"
-            f"Status: {status_tag}"
-        )
-        # Dispatches to ALL active subscribers
-        self.send_message(message)
+        """Deprecated compatibility method: Use send_bot_buy_alert for executed trades."""
+        pass
 
     def send_order_execution_alert(
         self,
@@ -234,7 +310,7 @@ class TelegramService:
         message = (
             f"{side_emoji}\n\n"
             f"🎯 *Contract:* `{symbol}`\n"
-            f"🔢 *Quantity:* `{quantity:.0f} units` ({int(quantity / settings.NIFTY_LOT_SIZE)} Lots)\n"
+            f"🔢 *Quantity:* `{quantity:.0f} units` ({max(1, int(quantity / settings.NIFTY_LOT_SIZE))} Lots)\n"
             f"💵 *Execution Premium:* `{self.currency}{price:,.2f}`\n"
             f"💼 *Total Capital Used:* `{self.currency}{total_amount:,.2f}`"
             f"{pnl_text}\n"

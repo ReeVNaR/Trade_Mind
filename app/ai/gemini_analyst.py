@@ -33,8 +33,8 @@ class AIAnalysisResult:
 
 class GeminiAnalyst:
     """
-    Analyzes Indian stock market trading signals using Google Gemini LLM reasoning.
-    Validates technical setups against Nifty trend, VWAP, Supertrend, RSI, and risk/reward.
+    Analyzes NIFTY 50 Index & F&O derivatives signals using Google Gemini LLM reasoning.
+    Validates technical setups against NIFTY trend, VWAP, Supertrend, RSI, ITM Option moneyness, and risk/reward.
     """
 
     def __init__(self):
@@ -45,12 +45,12 @@ class GeminiAnalyst:
             try:
                 genai.configure(api_key=self.api_key)
                 self.model = genai.GenerativeModel("gemini-1.5-flash")
-                logger.info("✅ Gemini AI Analyst initialized for Indian Stock Markets.")
+                logger.info("✅ Gemini AI Analyst initialized for NIFTY 50 F&O Markets.")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini AI: {e}")
                 self.model = None
         else:
-            logger.info("ℹ️ No GEMINI_API_KEY provided. Using Indian Quantitative Rule-Based Analyst.")
+            logger.info("ℹ️ No GEMINI_API_KEY provided. Using NIFTY 50 F&O Quantitative Rule-Based Analyst.")
 
     def analyze_signal(self, signal: Signal, market_context: Optional[Dict[str, Any]] = None) -> AIAnalysisResult:
         """Evaluates whether to confirm, veto, or adjust a trading signal."""
@@ -66,12 +66,12 @@ class GeminiAnalyst:
     def _call_gemini_api(self, signal: Signal, market_context: Optional[Dict[str, Any]]) -> AIAnalysisResult:
         """Sends structured market prompt to Gemini 1.5 Flash."""
         prompt = f"""
-You are an expert Indian Stock Market Quantitative Portfolio Manager and Risk Analyst specializing in NSE/BSE equities.
+You are an expert Indian Derivatives Portfolio Manager specializing in NIFTY 50 Index Futures & In-The-Money (ITM) Options.
 Evaluate the following trading signal:
 
-Symbol: {signal.symbol} (Indian Market)
+Symbol: {signal.symbol} (NIFTY 50 Universe)
 Proposed Action: {signal.action.value}
-Current Price: ₹{signal.price:,.2f} INR
+Index Spot / Premium Price: ₹{signal.price:,.2f} INR
 Strategy Source: {signal.strategy_name}
 Initial Strategy Confidence: {signal.confidence:.2f}
 Strategy Reasoning: {signal.reason}
@@ -79,15 +79,15 @@ Technical Indicators: {json.dumps(signal.indicators or {})}
 Market Context: {json.dumps(market_context or {})}
 
 Evaluate whether this trade setup is high probability considering:
-1. Confluence of Supertrend, VWAP, EMA, and RSI.
-2. Market structure, risk/reward, and false breakout avoidance.
-3. Realistic price volatility for Indian equities in INR.
+1. Confluence of Supertrend, VWAP, EMA, and RSI on NIFTY 50 Index.
+2. In-The-Money (ITM) option delta protection, theta decay risk, and false breakout avoidance.
+3. Strict daily circuit parameters (Max 4 trades/day, ₹2k max loss, ₹4k target).
 
 Respond STRICTLY in valid JSON matching this schema:
 {{
     "confirmed": true/false,
     "confidence_score": float (0.0 to 1.0),
-    "reasoning": "2-3 concise sentences explaining the rationale with Indian market context",
+    "reasoning": "2-3 concise sentences explaining the rationale with NIFTY index & option context",
     "risk_level": "LOW" | "MODERATE" | "HIGH",
     "action_recommendation": "BUY" | "SELL" | "HOLD"
 }}
@@ -103,13 +103,13 @@ Respond STRICTLY in valid JSON matching this schema:
         return AIAnalysisResult(
             confirmed=bool(data.get("confirmed", True)),
             confidence_score=float(data.get("confidence_score", 0.75)),
-            reasoning=str(data.get("reasoning", "Gemini confirmed signal based on Indian market technical setup.")),
+            reasoning=str(data.get("reasoning", "Gemini confirmed signal based on NIFTY 50 technical setup.")),
             risk_level=str(data.get("risk_level", "MODERATE")),
             action_recommendation=str(data.get("action_recommendation", signal.action.value))
         )
 
     def _rule_based_analysis(self, signal: Signal, market_context: Optional[Dict[str, Any]]) -> AIAnalysisResult:
-        """Fallback quantitative validation engine calibrated for Indian market volatility."""
+        """Fallback quantitative validation engine calibrated for NIFTY 50 Index volatility."""
         indicators = signal.indicators or {}
         rsi = indicators.get("rsi", 50.0)
         vwap = indicators.get("vwap", signal.price)
@@ -122,32 +122,32 @@ Respond STRICTLY in valid JSON matching this schema:
         if signal.action == ActionType.BUY:
             if rsi > 78:  # Overheated
                 confirmed = False
-                reason = f"VETO: {signal.symbol} is overextended on RSI ({rsi:.1f}). Wait for pullback near VWAP (₹{vwap:.2f})."
+                reason = f"VETO: NIFTY is overextended on RSI ({rsi:.1f}). Wait for pullback near VWAP (₹{vwap:,.2f})."
                 risk = "HIGH"
                 confidence = 0.35
             elif signal.price > vwap and st_dir == "BULLISH":
                 confirmed = True
-                reason = f"TradeMind AI Engine confirms high-probability bullish setup for {signal.symbol}: Price is trading above VWAP (₹{vwap:.2f}) with green Supertrend."
+                reason = f"TradeMind AI Engine confirms high-probability bullish setup on NIFTY 50: Price is trading above VWAP (₹{vwap:,.2f}) with green Supertrend."
                 risk = "LOW"
                 confidence = min(0.92, signal.confidence + 0.1)
             else:
                 confirmed = True
-                reason = f"TradeMind AI Engine validates trend momentum for {signal.symbol} with controlled position sizing."
+                reason = f"TradeMind AI Engine validates NIFTY trend momentum with controlled ITM option risk."
                 risk = "MODERATE"
 
         elif signal.action == ActionType.SELL:
             if rsi < 22:
                 confirmed = False
-                reason = f"VETO: {signal.symbol} is deeply oversold on RSI ({rsi:.1f}). Potential short squeeze risk."
+                reason = f"VETO: NIFTY is deeply oversold on RSI ({rsi:.1f}). Potential short squeeze risk."
                 risk = "HIGH"
                 confidence = 0.3
             else:
                 confirmed = True
-                reason = f"TradeMind AI Engine confirms bearish pressure or profit-taking condition for {signal.symbol}."
+                reason = f"TradeMind AI Engine confirms bearish momentum or profit-taking condition for NIFTY."
                 risk = "MODERATE"
         else:
             confirmed = False
-            reason = f"Market is in consolidation for {signal.symbol} near VWAP (₹{vwap:.2f}). Standing aside."
+            reason = f"NIFTY is in consolidation near VWAP (₹{vwap:,.2f}). Standing aside."
             risk = "LOW"
 
         return AIAnalysisResult(

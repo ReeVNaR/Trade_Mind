@@ -86,7 +86,16 @@ class SchedulerRunner:
                             "option_contract": display_contract
                         })
 
-                        # Log Signal to Database
+                        # Verify if market and circuit permit execution
+                        can_open_trades, circuit_status_msg = daily_risk_manager.can_open_new_trade(symbol=itm_info["symbol"])
+                        should_execute = (is_open or force) and ai_result.confirmed and can_open_trades
+
+                        # Execute Paper Order ONLY if conditions are met
+                        executed_trade = None
+                        if should_execute:
+                            executed_trade = portfolio_engine.execute_signal(signal)
+
+                        # Log Signal to Database with verified execution status
                         db = SessionLocal()
                         try:
                             log = SignalLog(
@@ -99,43 +108,28 @@ class SchedulerRunner:
                                 take_profit=signal.take_profit,
                                 ai_reasoning=ai_result.reasoning,
                                 ai_confirmed=ai_result.confirmed,
-                                executed=(ai_result.confirmed and is_open and can_open_trades)
+                                executed=bool(executed_trade is not None)
                             )
                             db.add(log)
                             db.commit()
                         finally:
                             db.close()
 
-                        # Dispatch Telegram Alert with F&O & Daily Risk details
-                        if is_open:
-                            telegram_service.send_trade_signal_alert(
-                                symbol=f"{itm_info['symbol']} (NIFTY Spot: ₹{curr_price:,.2f})",
-                                action=signal.action.value,
-                                price=itm_info["estimated_premium"],
+                        # Dispatch Telegram Alert ONLY WHEN THE BOT ACTUALLY BUYS
+                        if executed_trade:
+                            logger.info(f"🚀 Bot successfully bought {executed_trade.get('symbol')}. Dispatching Telegram Buy Alert...")
+                            telegram_service.send_bot_buy_alert(
+                                trade=executed_trade,
                                 strategy=strategy.name,
-                                confidence=ai_result.confidence_score,
-                                stop_loss=round(itm_info["estimated_premium"] * 0.85, 2),
-                                take_profit=round(itm_info["estimated_premium"] * 1.35, 2),
-                                ai_reasoning=ai_result.reasoning,
-                                risk_level=ai_result.risk_level,
-                                ai_confirmed=ai_result.confirmed
+                                ai_result=ai_result,
+                                spot_price=curr_price
                             )
                         else:
-                            # Send AMO / Closed Market Alert only if manually forced
-                            telegram_service.send_alert(
-                                f"🕒 <b>AMO / AFTER-HOURS NIFTY SETUP DETECTED</b>\n\n"
-                                f"<b>Underlying:</b> <code>NIFTY 50 Index</code> (Spot: ₹{curr_price:,.2f})\n"
-                                f"<b>Contract:</b> <code>{itm_info['symbol']}</code>\n"
-                                f"<b>Signal:</b> <b>{signal.action.value}</b> @ Est. Premium ₹{itm_info['estimated_premium']:,.2f}\n"
-                                f"<b>Strategy:</b> {strategy.name}\n"
-                                f"<b>AI Confidence:</b> {int(ai_result.confidence_score * 100)}%\n\n"
-                                f"🧠 <b>AI Verdict:</b> {ai_result.reasoning}\n\n"
-                                f"⚠️ <i>Market is currently {status_ist}. Next session opens {data_fetcher.get_next_market_open_ist()}.</i>"
+                            logger.info(
+                                f"ℹ️ Signal {signal.action.value} for {itm_info['symbol']} not executed "
+                                f"(AI Confirmed: {ai_result.confirmed}, Market Open: {is_open}, Circuit OK: {can_open_trades}). "
+                                f"No Telegram alert sent."
                             )
-
-                        # Execute Paper Order ONLY if market is actively open and daily circuit allows
-                        if is_open and ai_result.confirmed and can_open_trades:
-                            portfolio_engine.execute_signal(signal)
 
             except Exception as e:
                 logger.error(f"Error during scan of {symbol}: {e}")
@@ -170,10 +164,26 @@ class SchedulerRunner:
     def _schedule_loop(self):
         """Background daemon thread execution loop."""
         schedule.every(settings.SCAN_INTERVAL_MINUTES).minutes.do(self.run_market_scan)
-        schedule.every().day.at("15:35").do(self.run_daily_summary)  # After Indian market close (15:30 IST)
-        schedule.every(10).minutes.do(self._keep_alive_ping)  # Keep Render free instance awake
+        
+        # Automated Pre-Market Session Reset (09:00 IST)
+        schedule.every().day.at(settings.PRE_MARKET_RESET_TIME).do(portfolio_engine.run_pre_market_reset)
+        
+        # Automated Intraday EOD Auto Square-Off (15:25 IST)
+        if settings.AUTO_EOD_SQUARE_OFF:
+            schedule.every().day.at(settings.EOD_SQUARE_OFF_TIME).do(portfolio_engine.run_eod_square_off)
+        
+        # Post-Market Daily Summary (15:35 IST)
+        schedule.every().day.at("15:35").do(self.run_daily_summary)
+        
+        # Render Free-Tier Keep-Alive Ping (Every 10 min)
+        schedule.every(10).minutes.do(self._keep_alive_ping)
 
-        logger.info(f"Scheduler active: scanning NIFTY every {settings.SCAN_INTERVAL_MINUTES} min, daily summary at 15:35 IST.")
+        logger.info(
+            f"Scheduler active: scanning NIFTY every {settings.SCAN_INTERVAL_MINUTES}m | "
+            f"Pre-Market Reset @ {settings.PRE_MARKET_RESET_TIME} IST | "
+            f"EOD Square-Off @ {settings.EOD_SQUARE_OFF_TIME} IST | "
+            f"Daily Summary @ 15:35 IST."
+        )
         while self.is_running:
             schedule.run_pending()
             time.sleep(1)

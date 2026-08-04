@@ -82,7 +82,7 @@ class BacktestEngine:
 
     def run_backtest(
         self,
-        symbol: str = "RELIANCE.NS",
+        symbol: str = "^NSEI",
         strategy_name: str = "Supertrend_VWAP_Indian",
         period: str = "60d",
         interval: str = "1h",

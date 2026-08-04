@@ -37,6 +37,12 @@ services:
         value: "15"
       - key: DEFAULT_SYMBOLS
         value: "^NSEI"
+      - key: AUTO_RESET_DB_ON_START
+        value: "true"
+      - key: AUTO_EOD_SQUARE_OFF
+        value: "true"
+      - key: EOD_SQUARE_OFF_TIME
+        value: "15:25"
       - key: TELEGRAM_TOKEN
         sync: false
       - key: CHAT_ID

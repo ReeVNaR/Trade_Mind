@@ -41,27 +41,34 @@ class DailyRiskManager:
         now = current_datetime or datetime.now(IST)
         return now.date()
 
-    def is_expiry_cutoff_active(self, current_datetime: Optional[datetime] = None) -> Tuple[bool, str]:
+    def is_expiry_cutoff_active(
+        self,
+        current_datetime: Optional[datetime] = None,
+        symbol: Optional[str] = None
+    ) -> Tuple[bool, str]:
         """
         Checks if trading is blocked due to the Expiry Day 2:00 PM IST cutoff rule.
-        On Tuesday (NSE NIFTY weekly expiry), NO new trades are permitted after 14:00 (2:00 PM IST)
+        On Tuesday (NSE NIFTY weekly expiry), NO new NIFTY option trades are permitted after 14:00 (2:00 PM IST)
         to protect capital against severe theta crush and post-2pm gamma volatility.
         """
         now = current_datetime or datetime.now(IST)
         # weekday(): Monday=0, Tuesday=1 (NIFTY Expiry), Wednesday=2, Thursday=3, Friday=4
         is_expiry_day = (now.weekday() == 1)
         if is_expiry_day and now.time() >= time(14, 0):
-            msg = (
-                "⏳ EXPIRY CUTOFF ACTIVE: No new NIFTY trades allowed on Expiry Day after 2:00 PM IST "
-                "to protect against rapid theta decay & extreme gamma volatility."
-            )
-            return True, msg
+            # Apply cutoff to NIFTY derivative symbols or default scan
+            if symbol is None or "NIFTY" in symbol.upper() or "^NSEI" in symbol.upper():
+                msg = (
+                    "⏳ EXPIRY CUTOFF ACTIVE: No new NIFTY trades allowed on Expiry Day after 2:00 PM IST "
+                    "to protect against rapid theta decay & extreme gamma volatility."
+                )
+                return True, msg
         return False, "OK"
 
     def get_daily_trade_stats(
         self,
         db: Optional[Session] = None,
-        current_datetime: Optional[datetime] = None
+        current_datetime: Optional[datetime] = None,
+        symbol: Optional[str] = None
     ) -> Dict[str, Any]:
         """Calculates today's trade count, realized PnL, unrealized PnL, and circuit / expiry status."""
         should_close = False
@@ -73,13 +80,24 @@ class DailyRiskManager:
             now = current_datetime or datetime.now(IST)
             today_ist = self.get_today_date_ist(now)
             
-            # Fetch all trades to filter by today's date
+            # Fetch all trades to filter accurately by today's date in IST
             all_trades = db.query(Trade).all()
             today_trades = []
             for t in all_trades:
                 if t.created_at:
-                    t_date = t.created_at.date()
-                    if t_date == today_ist:
+                    t_created = t.created_at
+                    if getattr(t_created, "tzinfo", None) is None:
+                        try:
+                            from zoneinfo import ZoneInfo
+                            utc_tz = ZoneInfo("UTC")
+                        except Exception:
+                            import pytz
+                            utc_tz = pytz.UTC
+                        t_ist = t_created.replace(tzinfo=utc_tz).astimezone(IST)
+                    else:
+                        t_ist = t_created.astimezone(IST)
+                    
+                    if t_ist.date() == today_ist:
                         today_trades.append(t)
 
             trades_today_count = len(today_trades)
@@ -122,7 +140,7 @@ class DailyRiskManager:
                 )
             # 4. Expiry Day Post-2:00 PM IST Cutoff
             else:
-                is_cutoff, cutoff_msg = self.is_expiry_cutoff_active(now)
+                is_cutoff, cutoff_msg = self.is_expiry_cutoff_active(now, symbol=symbol)
                 if is_cutoff:
                     circuit_status = "HALTED_EXPIRY_AFTER_2PM"
                     can_trade = False
@@ -131,7 +149,7 @@ class DailyRiskManager:
             remaining_loss = max(0.0, self.max_daily_loss + total_daily_pnl)
             remaining_target = max(0.0, self.max_daily_profit - total_daily_pnl)
             is_expiry = (now.weekday() == 1)
-            is_cutoff_active = is_expiry and (now.time() >= time(14, 0))
+            is_cutoff_active = is_expiry and (now.time() >= time(14, 0)) and (symbol is None or "NIFTY" in (symbol or "").upper())
 
             return {
                 "date_ist": str(today_ist),
@@ -155,11 +173,18 @@ class DailyRiskManager:
             if should_close:
                 db.close()
 
-    def can_open_new_trade(self, current_datetime: Optional[datetime] = None) -> Tuple[bool, str]:
+    def can_open_new_trade(
+        self,
+        current_datetime: Optional[datetime] = None,
+        symbol: Optional[str] = None,
+        bypass_circuit: bool = False
+    ) -> Tuple[bool, str]:
         """
         Validates if a new trade can be executed under daily risk limits & expiry post-2pm cutoff.
         """
-        stats = self.get_daily_trade_stats(current_datetime=current_datetime)
+        if bypass_circuit:
+            return True, "Circuit bypassed by admin or test"
+        stats = self.get_daily_trade_stats(current_datetime=current_datetime, symbol=symbol)
         if not stats["can_trade"]:
             logger.warning(f"Trade Execution Blocked: {stats['status_message']}")
             return False, stats["status_message"]

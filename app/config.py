@@ -12,7 +12,7 @@ load_dotenv(dotenv_path=ENV_PATH)
 
 
 class Settings:
-    PROJECT_NAME: str = "TradeMind-AI (Indian Stock Market)"
+    PROJECT_NAME: str = "TradeMind-AI (NIFTY 50 F&O)"
     VERSION: str = "2.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
     
@@ -49,8 +49,12 @@ class Settings:
         return [s.strip().upper() for s in self.DEFAULT_SYMBOLS_RAW.split(",") if s.strip()]
 
         
-    # Database
+    # Database & Auto-Lifecycle Management
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/trademind.db")
+    AUTO_RESET_DB_ON_START: bool = os.getenv("AUTO_RESET_DB_ON_START", "true").strip().lower() in ["true", "1", "yes"]
+    AUTO_EOD_SQUARE_OFF: bool = os.getenv("AUTO_EOD_SQUARE_OFF", "true").strip().lower() in ["true", "1", "yes"]
+    EOD_SQUARE_OFF_TIME: str = os.getenv("EOD_SQUARE_OFF_TIME", "15:25").strip()
+    PRE_MARKET_RESET_TIME: str = os.getenv("PRE_MARKET_RESET_TIME", "09:00").strip()
     
     # Scheduler
     SCAN_INTERVAL_MINUTES: int = int(os.getenv("SCAN_INTERVAL_MINUTES", "15"))
@@ -65,26 +69,31 @@ class Settings:
 
 
 def is_indian_symbol(symbol: str) -> bool:
-    """Strictly checks if a symbol belongs to the Indian Stock Market (NSE / BSE)."""
+    """Strictly checks if a symbol belongs to the NIFTY Index & F&O Universe."""
+    if not symbol:
+        return False
     s = symbol.strip().upper()
-    if s.endswith(".NS") or s.endswith(".BO"):
+    # Explicit NIFTY indices
+    if s in ["^NSEI", "NIFTY", "NIFTY50", "NIFTY 50", "^NSEBANK", "BANKNIFTY"]:
         return True
-    if s in ["^NSEI", "^NSEBANK", "^CNXIT", "^BSESN", "NIFTY50", "BANKNIFTY", "NIFTY"]:
+    # NIFTY F&O Option / Future Contracts (e.g. NIFTY 24750 CE, NIFTY26AUG24800PE)
+    if s.startswith("NIFTY") and ("CE" in s or "PE" in s or "FUT" in s):
         return True
     return False
 
 
 def normalize_indian_symbol(symbol: str) -> str:
-    """Normalizes an Indian stock symbol (e.g. RELIANCE -> RELIANCE.NS, NIFTY -> ^NSEI)."""
+    """Normalizes NIFTY symbol to official index code (^NSEI) or standard contract string."""
+    if not symbol:
+        return "^NSEI"
     s = symbol.strip().upper()
-    if s in ["NIFTY", "NIFTY50", "^NSEI"]:
+    if s in ["NIFTY", "NIFTY50", "NIFTY 50", "^NSEI"]:
         return "^NSEI"
     if s in ["BANKNIFTY", "^NSEBANK"]:
         return "^NSEBANK"
-    if s.endswith(".NS") or s.endswith(".BO") or s.startswith("^"):
+    if s.startswith("NIFTY"):
         return s
-    # Default to National Stock Exchange (.NS)
-    return f"{s}.NS"
+    return s
 
 
 settings = Settings()

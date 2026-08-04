@@ -39,23 +39,33 @@ def test_status_endpoint(client):
     assert data["initial_balance"] == 30000.0
 
 
-def test_indian_stocks_endpoint(client):
-    response = client.get("/api/indian-stocks")
+def test_nifty_universe_endpoint(client):
+    response = client.get("/api/nifty/universe")
     assert response.status_code == 200
-    stocks = response.json()
-    assert isinstance(stocks, list)
-    assert len(stocks) >= 10
-    symbols = [s["symbol"] for s in stocks]
-    assert "RELIANCE.NS" in symbols
-    assert "TCS.NS" in symbols
+    universe = response.json()
+    assert isinstance(universe, list)
+    assert len(universe) >= 1
+    symbols = [s["symbol"] for s in universe]
+    assert "^NSEI" in symbols
 
 
-def test_trace_live_indian_stock(client):
-    response = client.get("/api/trace/RELIANCE.NS")
+def test_nifty_fno_setup_endpoint(client):
+    response = client.get("/api/nifty/fno-setup")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "^NSEI"
+    assert "spot_price" in data
+    assert "itm_call" in data
+    assert "itm_put" in data
+    assert data["lot_size"] == 65
+
+
+def test_trace_live_nifty(client):
+    response = client.get("/api/trace/^NSEI")
     assert response.status_code == 200
     data = response.json()
     assert "trace" in data
-    assert data["trace"]["symbol"] == "RELIANCE.NS"
+    assert data["trace"]["symbol"] == "^NSEI"
     assert data["trace"]["current_price"] > 0
     assert data["trace"]["currency"] == "₹"
     assert "technical_indicators" in data
@@ -63,11 +73,13 @@ def test_trace_live_indian_stock(client):
     assert "supertrend_direction" in data["technical_indicators"]
 
 
-def test_reject_non_indian_stock(client):
-    # Non-Indian or crypto symbol must be rejected
-    response = client.get("/api/trace/AAPL")
-    # AAPL is not an Indian stock -> returns 404 or 400
-    assert response.status_code in [400, 404]
+def test_reject_non_nifty_symbols(client):
+    # Non-NIFTY stocks (e.g. AAPL or individual equities) must be rejected
+    response_aapl = client.get("/api/trace/AAPL")
+    assert response_aapl.status_code in [400, 404]
+
+    response_stock = client.get("/api/trace/RELIANCE.NS")
+    assert response_stock.status_code in [400, 404]
 
 
 def test_portfolio_endpoint(client):
@@ -82,15 +94,15 @@ def test_portfolio_endpoint(client):
 
 def test_backtest_endpoint(client):
     response = client.post("/api/backtest", json={
-        "symbol": "RELIANCE.NS",
+        "symbol": "^NSEI",
         "strategy_name": "Supertrend_VWAP_Indian",
         "period": "30d",
         "interval": "1d",
-        "initial_balance": 2000.0
+        "initial_balance": 30000.0
     })
     assert response.status_code == 200
     data = response.json()
-    assert data["symbol"] == "RELIANCE.NS"
+    assert data["symbol"] == "^NSEI"
     assert "total_return_percent" in data
     assert "win_rate_percent" in data
     assert data["currency"] == "₹"
@@ -108,10 +120,10 @@ def test_trades_history_endpoint(client):
 
 
 def test_confirm_setup_endpoint(client):
-    response = client.get("/api/confirm-setup/RELIANCE.NS")
+    response = client.get("/api/confirm-setup/^NSEI")
     assert response.status_code == 200
     data = response.json()
-    assert data["symbol"] == "RELIANCE.NS"
+    assert data["symbol"] == "^NSEI"
     assert "confidence_percent" in data
     assert "checklist" in data
     assert len(data["checklist"]) >= 5
