@@ -62,9 +62,8 @@ class SchedulerRunner:
                 df = data_fetcher.fetch_ohlcv(symbol, period="10d", interval="15m")
                 if df.empty or len(df) < 20:
                     logger.warning(f"Not enough candle data for {symbol}")
-                    continue
-
-                curr_price = float(df["close"].iloc[-1])
+                ticker = data_fetcher.get_live_nifty_ticker()
+                curr_price = ticker["current_price"] if (ticker and ticker.get("current_price", 0) > 0) else float(df["close"].iloc[-1])
                 current_prices[symbol] = curr_price
 
                 # Evaluate all active strategies

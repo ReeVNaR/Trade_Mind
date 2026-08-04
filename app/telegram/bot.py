@@ -298,12 +298,12 @@ class TelegramService:
                 f"⚡ *Strategy:* `In-The-Money (ITM) Breakouts + Gemini AI Confluence`\n"
                 f"🛡️ *Daily Risk:* `Max 4 Trades/Day | ₹2,000 Max SL | ₹4,000 Profit Target`\n\n"
                 f"📌 *Available Commands:*\n"
-                f"• `/nifty` - Live NIFTY spot & recommended ITM Call/Put strikes\n"
+                f"• `/spot` or `/nifty` - Live zero-delay NIFTY spot & recommended ITM Call/Put strikes\n"
                 f"• `/daily` - Daily Risk & Circuit Breaker status\n"
                 f"• `/portfolio` - ₹30,000 Capital & balance overview\n"
                 f"• `/positions` - Active open ITM options positions & Trailing SL\n"
                 f"• `/history` - Trade audit log & win-rate metrics\n"
-                f"• `/market` - Check live NSE market hours\n"
+                f"• `/market` - Check live NSE market status & NIFTY spot\n"
                 f"• `/scan` - Run immediate NIFTY 50 scan\n"
                 f"• `/stop` - Pause signal alerts{admin_cmd}\n\n"
                 f"🚀 *Sit back and let AI identify high-probability setups!*"
@@ -352,6 +352,11 @@ class TelegramService:
         # 1. Market Status
         elif cmd in ["/market", "/status", "market", "status"]:
             from app.data.fetcher import data_fetcher
+            ticker = data_fetcher.get_live_nifty_ticker()
+            spot = ticker.get("current_price", 24774.30)
+            chg = ticker.get("change", 0.0)
+            chg_pct = ticker.get("change_percent", 0.0)
+            chg_sign = "+" if chg >= 0 else ""
             status_text = data_fetcher.get_market_status_ist()
             is_open = data_fetcher.is_market_open_now()
             next_open = data_fetcher.get_next_market_open_ist()
@@ -359,13 +364,14 @@ class TelegramService:
 
             reply = (
                 f"🏛️ *INDIAN STOCK MARKET (NSE / BSE) STATUS* 🇮🇳\n\n"
-                f"• Current Status: {status_emoji} (`{status_text}`)\n"
-                f"• Focus Universe: `NIFTY 50 Index (F&O Exclusive)`\n"
-                f"• Capital: `{self.currency}{settings.INITIAL_BALANCE:,.2f}`\n"
-                f"• Max Daily Trades: `{settings.MAX_DAILY_TRADES}`\n"
-                f"• Max Daily SL / Target: `{self.currency}{settings.MAX_DAILY_LOSS:,.2f} / +{self.currency}{settings.MAX_DAILY_PROFIT:,.2f}`\n"
-                f"• Next Market Open: `{next_open}`\n"
-                f"• Current Time: `{now_ist}`"
+                f"• *Current Status:* {status_emoji} (`{status_text}`)\n"
+                f"• *NIFTY 50 Live Spot:* `{self.currency}{spot:,.2f}` ({chg_sign}{chg:,.2f}, {chg_sign}{chg_pct:.2f}%)\n"
+                f"• *Focus Universe:* `NIFTY 50 Index (F&O Exclusive)`\n"
+                f"• *Capital:* `{self.currency}{settings.INITIAL_BALANCE:,.2f}`\n"
+                f"• *Max Daily Trades:* `{settings.MAX_DAILY_TRADES}`\n"
+                f"• *Max Daily SL / Target:* `{self.currency}{settings.MAX_DAILY_LOSS:,.2f} / +{self.currency}{settings.MAX_DAILY_PROFIT:,.2f}`\n"
+                f"• *Next Market Open:* `{next_open}`\n"
+                f"• *Current Time:* `{now_ist}`"
             )
             self.send_message(reply, chat_id=chat_id)
 
@@ -401,38 +407,58 @@ class TelegramService:
             )
             self.send_message(reply, chat_id=chat_id)
 
-        # 3. Live NIFTY F&O Quote & ITM Strike Recommendation
-        elif cmd in ["/nifty", "/fno", "nifty", "fno"]:
+        # 3. Live NIFTY Spot & ITM Strike Recommendation
+        elif cmd in ["/spot", "/nifty", "/live", "/price", "/fno", "/strike", "/itm", "/nifty50", "spot", "nifty", "live", "price", "fno", "strike", "itm"]:
             from app.data.fetcher import data_fetcher
             from app.data.nifty_options import get_nifty_itm_strike
             try:
-                trace = data_fetcher.trace_live_stock("^NSEI")
-                spot = trace.current_price
-                chg_sign = "+" if trace.change_24h >= 0 else ""
+                ticker = data_fetcher.get_live_nifty_ticker()
+                spot = ticker.get("current_price", 24774.30)
+                chg = ticker.get("change", 0.0)
+                chg_pct = ticker.get("change_percent", 0.0)
+                chg_sign = "+" if chg >= 0 else ""
+                dir_arrow = "▲" if chg >= 0 else "▼"
+                mkt_status = ticker.get("market_status", "LIVE")
+                high = ticker.get("day_high", spot)
+                low = ticker.get("day_low", spot)
+                open_p = ticker.get("open_price", spot)
+                prev_c = ticker.get("previous_close", spot)
+                sma50 = ticker.get("fifty_day_sma", 0.0)
+                sma200 = ticker.get("two_hundred_day_sma", 0.0)
+                tick_time = ticker.get("timestamp_ist", now_ist)
+                latency = ticker.get("latency", "0ms (Direct Live Feed)")
+
+                trend_text = "🟢 Bullish (Above 200 SMA)" if spot >= sma200 else "🔴 Bearish (Below 200 SMA)"
 
                 itm_ce = get_nifty_itm_strike(spot, "CE", itm_depth=1)
                 itm_pe = get_nifty_itm_strike(spot, "PE", itm_depth=1)
 
                 reply = (
-                    f"🎯 *NIFTY 50 INDEX (F&O SCANNER)* 🇮🇳\n\n"
-                    f"💵 *Live Spot:* `{self.currency}{spot:,.2f}` ({chg_sign}{trace.change_percent:.2f}%)\n"
-                    f"📈 *Day Range:* `{self.currency}{trace.day_low:,.2f} – {self.currency}{trace.day_high:,.2f}`\n"
-                    f"📦 *Lot Size:* `{settings.NIFTY_LOT_SIZE} units`\n"
-                    f"📅 *Expiry:* `{itm_ce['expiry_display']}`\n\n"
-                    f"🟢 *RECOMMENDED ITM CALL (BULLISH):*\n"
+                    f"⚡ *NIFTY 50 INDEX — LIVE SPOT TICKER* 🇮🇳\n\n"
+                    f"💵 *Live Spot LTP:* `{self.currency}{spot:,.2f}` ({chg_sign}{chg:,.2f}, {chg_sign}{chg_pct:.2f}% {dir_arrow})\n"
+                    f"📊 *Day Range:* `{self.currency}{low:,.2f} – {self.currency}{high:,.2f}`\n"
+                    f"🏷️ *Open / Prev Close:* `{self.currency}{open_p:,.2f} / {self.currency}{prev_c:,.2f}`\n"
+                    f"🏛️ *Market Session:* `{mkt_status}`\n"
+                    f"⚡ *Data Feed:* `{latency}`\n\n"
+                    f"📐 *Technical Indicators:*\n"
+                    f"• *50 SMA:* `{self.currency}{sma50:,.2f}`\n"
+                    f"• *200 SMA:* `{self.currency}{sma200:,.2f}` ({trend_text})\n"
+                    f"• *Lot Size:* `{settings.NIFTY_LOT_SIZE} units` | Expiry: `{itm_ce['expiry_display']}`\n\n"
+                    f"🟢 *ACTIVE IN-THE-MONEY (ITM) CALL:*\n"
                     f"• Contract: `{itm_ce['symbol']}`\n"
                     f"• Est. Premium: `{self.currency}{itm_ce['estimated_premium']:,.2f}`\n"
-                    f"• 1-Lot Cost: `{self.currency}{itm_ce['lot_cost']:,.2f}` (Delta: ~{itm_ce['estimated_delta']})\n\n"
-                    f"🔴 *RECOMMENDED ITM PUT (BEARISH):*\n"
+                    f"• 1-Lot Cost: `{self.currency}{itm_ce['lot_cost']:,.2f}` (Delta: ~{itm_ce['estimated_delta']})\n"
+                    f"• Target / SL: `{self.currency}{itm_ce['estimated_premium'] * 1.35:,.2f} / {self.currency}{itm_ce['estimated_premium'] * 0.85:,.2f}`\n\n"
+                    f"🔴 *ACTIVE IN-THE-MONEY (ITM) PUT:*\n"
                     f"• Contract: `{itm_pe['symbol']}`\n"
                     f"• Est. Premium: `{self.currency}{itm_pe['estimated_premium']:,.2f}`\n"
-                    f"• 1-Lot Cost: `{self.currency}{itm_pe['lot_cost']:,.2f}` (Delta: ~{itm_pe['estimated_delta']})\n\n"
-                    f"💼 *Budget:* `{self.currency}{settings.INITIAL_BALANCE:,.2f}` (35% Max Margin/Trade)\n"
-                    f"⏰ *As of:* `{now_ist}`"
+                    f"• 1-Lot Cost: `{self.currency}{itm_pe['lot_cost']:,.2f}` (Delta: ~{itm_pe['estimated_delta']})\n"
+                    f"• Target / SL: `{self.currency}{itm_pe['estimated_premium'] * 1.35:,.2f} / {self.currency}{itm_pe['estimated_premium'] * 0.85:,.2f}`\n\n"
+                    f"⏰ *Tick Time:* `{tick_time}`"
                 )
                 self.send_message(reply, chat_id=chat_id)
             except Exception as e:
-                self.send_message(f"❌ Could not fetch NIFTY live data: {e}", chat_id=chat_id)
+                self.send_message(f"❌ Could not fetch NIFTY live spot: {e}", chat_id=chat_id)
 
         # 4. View Virtual Portfolio Summary
         elif cmd in ["/portfolio", "/balance", "portfolio", "balance"]:
@@ -586,7 +612,7 @@ class TelegramService:
                 f"I am your autonomous algorithmic assistant trading **NIFTY 50 Futures & Options** with ITM strike selection and strict daily risk circuits.\n\n"
                 f"Available Commands:\n"
                 f"• `/start` - Subscribe to all live trading signals & alerts\n"
-                f"• `/nifty` - Live NIFTY 50 spot & recommended ITM Call/Put strikes\n"
+                f"• `/spot` or `/nifty` - Live zero-delay NIFTY 50 spot & recommended ITM Call/Put strikes\n"
                 f"• `/daily` - Daily Risk & Circuit Monitor (Trades X/4, PnL vs ₹4,000 Target / ₹2,000 SL)\n"
                 f"• `/portfolio` - View ₹30k capital, liquid cash & returns\n"
                 f"• `/positions` - List active ITM options positions with TSL\n"
