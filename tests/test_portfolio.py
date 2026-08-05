@@ -271,3 +271,16 @@ def test_nifty_spot_price_tracking_on_buy_and_sell():
     assert sell_trade["realized_pnl"] > 0
 
 
+def test_min_daily_trades_stats():
+    engine = PortfolioEngine()
+    summary = engine.get_portfolio_summary()
+    daily_risk = summary.get("daily_risk", {})
+    
+    assert "min_daily_trades" in daily_risk
+    assert daily_risk["min_daily_trades"] == 2
+    assert "trades_needed_today" in daily_risk
+    assert daily_risk["trades_needed_today"] >= 0
+    assert "is_min_trades_met" in daily_risk
+
+
+

@@ -1,11 +1,12 @@
 import time
 import threading
 import schedule
-from datetime import datetime
+import pandas as pd
+from datetime import datetime, time as dtime
 from typing import List, Dict, Any
 
 from app.config import settings
-from app.data.fetcher import data_fetcher
+from app.data.fetcher import data_fetcher, IST
 from app.data.nifty_options import get_nifty_itm_strike, NIFTY_LOT_SIZE
 from app.strategies.base import BaseStrategy, Signal, ActionType
 from app.strategies.trend_following import TrendFollowingStrategy
@@ -37,6 +38,96 @@ class SchedulerRunner:
             RSIReversalStrategy()
         ]
 
+    def _evaluate_opportunistic_signal(self, df: pd.DataFrame, symbol: str, curr_price: float) -> Signal:
+        """
+        Generates an opportunistic trade signal based on dominant market directional bias
+        to enforce mandatory daily trades (MIN_DAILY_TRADES) when standard strategies return HOLD.
+        """
+        from app.indicators.technical import calculate_all_indicators
+        data = calculate_all_indicators(df)
+        curr = data.iloc[-1]
+        
+        vwap = float(curr.get("vwap", curr_price))
+        st_dir = int(curr.get("supertrend_dir", 1))
+        ema9 = float(curr.get("ema_9", curr_price))
+        ema21 = float(curr.get("ema_21", curr_price))
+        ema50 = float(curr.get("ema_50", curr_price))
+        rsi = float(curr.get("rsi_14", 50.0))
+        macd_hist = float(curr.get("macd_hist", 0.0))
+        atr = float(curr.get("atr_14", curr_price * 0.015))
+
+        bullish_score = 0
+        bearish_score = 0
+
+        if st_dir == 1:
+            bullish_score += 2
+        else:
+            bearish_score += 2
+
+        if curr_price >= vwap:
+            bullish_score += 2
+        else:
+            bearish_score += 2
+
+        if ema9 >= ema21:
+            bullish_score += 1
+        else:
+            bearish_score += 1
+
+        if curr_price >= ema50:
+            bullish_score += 1
+        else:
+            bearish_score += 1
+
+        if rsi >= 50:
+            bullish_score += 1
+        else:
+            bearish_score += 1
+
+        if macd_hist >= 0:
+            bullish_score += 1
+        else:
+            bearish_score += 1
+
+        indicators_summary = {
+            "price": round(curr_price, 2),
+            "vwap": round(vwap, 2),
+            "supertrend_direction": "BULLISH" if st_dir == 1 else "BEARISH",
+            "rsi": round(rsi, 2),
+            "bullish_bias_score": bullish_score,
+            "bearish_bias_score": bearish_score,
+            "is_mandatory_trade": True
+        }
+
+        if bullish_score >= bearish_score:
+            action = ActionType.BUY
+            stop_loss = curr_price - (1.5 * atr)
+            take_profit = curr_price + (3.0 * atr)
+            reason = (
+                f"Mandatory Daily Target Enforcement (Min {settings.MIN_DAILY_TRADES} trades/day): "
+                f"Bullish bias detected (Score {bullish_score} vs {bearish_score}, ST Green, Close ₹{curr_price:,.2f})."
+            )
+        else:
+            action = ActionType.SELL
+            stop_loss = curr_price + (1.5 * atr)
+            take_profit = curr_price - (3.0 * atr)
+            reason = (
+                f"Mandatory Daily Target Enforcement (Min {settings.MIN_DAILY_TRADES} trades/day): "
+                f"Bearish bias detected (Score {bearish_score} vs {bullish_score}, ST Red, Close ₹{curr_price:,.2f})."
+            )
+
+        return Signal(
+            symbol=symbol,
+            action=action,
+            price=curr_price,
+            confidence=0.68,
+            strategy_name="Opportunistic_Mandatory_Daily_Target",
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            reason=reason,
+            indicators=indicators_summary
+        )
+
     def run_market_scan(self, force: bool = False):
         """Executes a full scanning pass over NIFTY 50 Index."""
         is_open = data_fetcher.is_market_open_now()
@@ -57,7 +148,7 @@ class SchedulerRunner:
         signals_processed = 0
 
         now_ist_time = datetime.now(IST).time()
-        is_after_1520 = now_ist_time >= time(15, 20)
+        is_after_1520 = now_ist_time >= dtime(15, 20)
 
         for symbol in symbols:
             try:
@@ -70,6 +161,7 @@ class SchedulerRunner:
                 ticker = data_fetcher.get_live_nifty_ticker()
                 curr_price = (ticker.get("current_price") if ticker else None) or float(df["close"].iloc[-1])
                 current_prices[symbol] = curr_price
+                executed_trade = None
 
                 # Evaluate all active strategies
                 for strategy in self.strategies:
@@ -97,7 +189,6 @@ class SchedulerRunner:
                         should_execute = (is_open or force) and time_allowed and ai_result.confirmed and can_open_trades
 
                         # Execute Paper Order ONLY if conditions are met
-                        executed_trade = None
                         if should_execute:
                             executed_trade = portfolio_engine.execute_signal(signal)
 
@@ -137,6 +228,63 @@ class SchedulerRunner:
                                 f"ℹ️ Signal {signal.action.value} for {itm_info['symbol']} not executed "
                                 f"(AI Confirmed: {ai_result.confirmed}, Market Open: {is_open}, Time OK: {time_allowed}, Circuit OK: {can_open_trades}). "
                                 f"No Telegram alert sent."
+                            )
+
+                # Mandatory Daily Trade Enforcement if no standard signal triggered and trades_today < MIN_DAILY_TRADES
+                if executed_trade is None:
+                    daily_stats = daily_risk_manager.get_daily_trade_stats()
+                    trades_today = daily_stats.get("trades_today", 0)
+                    can_open_trades, circuit_status_msg = daily_risk_manager.can_open_new_trade()
+                    time_allowed = not is_after_1520 or force
+
+                    if trades_today < settings.MIN_DAILY_TRADES and (is_open or force) and time_allowed and can_open_trades:
+                        logger.info(
+                            f"⚡ Mandatory Daily Trade Requirement Active ({trades_today}/{settings.MIN_DAILY_TRADES} trades taken). "
+                            f"Generating Opportunistic Target Trade..."
+                        )
+                        opp_signal = self._evaluate_opportunistic_signal(df, symbol, curr_price)
+                        signals_processed += 1
+
+                        is_call = opp_signal.action == ActionType.BUY
+                        opt_type = "CE" if is_call else "PE"
+                        itm_info = get_nifty_itm_strike(curr_price, opt_type, itm_depth=1)
+                        display_contract = f"{itm_info['symbol']} (Est. Premium ₹{itm_info['estimated_premium']}, Lot Qty: {NIFTY_LOT_SIZE})"
+
+                        ai_result = gemini_analyst.analyze_signal(opp_signal, {
+                            "symbol": symbol,
+                            "current_price": curr_price,
+                            "option_contract": display_contract,
+                            "is_mandatory": True
+                        })
+
+                        executed_trade = portfolio_engine.execute_signal(opp_signal)
+
+                        db = SessionLocal()
+                        try:
+                            log = SignalLog(
+                                symbol=itm_info["symbol"],
+                                strategy=opp_signal.strategy_name,
+                                action=opp_signal.action.value,
+                                confidence=opp_signal.confidence,
+                                price=itm_info["estimated_premium"],
+                                stop_loss=opp_signal.stop_loss,
+                                take_profit=opp_signal.take_profit,
+                                ai_reasoning=ai_result.reasoning,
+                                ai_confirmed=ai_result.confirmed,
+                                executed=bool(executed_trade is not None)
+                            )
+                            db.add(log)
+                            db.commit()
+                        finally:
+                            db.close()
+
+                        if executed_trade:
+                            logger.info(f"🚀 Mandatory Daily Target Trade Executed: Bought {executed_trade.get('symbol')}. Dispatching Telegram Buy Alert...")
+                            telegram_service.send_bot_buy_alert(
+                                trade=executed_trade,
+                                strategy=opp_signal.strategy_name,
+                                ai_result=ai_result,
+                                spot_price=curr_price
                             )
 
             except Exception as e:

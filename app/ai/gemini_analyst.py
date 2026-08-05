@@ -119,15 +119,26 @@ Respond STRICTLY in valid JSON matching this schema:
         risk = "MODERATE"
         confidence = signal.confidence
 
+        # Check for mandatory trade enforcement override
+        is_mandatory = (market_context or {}).get("is_mandatory", False) or signal.strategy_name == "Opportunistic_Mandatory_Daily_Target"
+        if is_mandatory and signal.action != ActionType.HOLD:
+            return AIAnalysisResult(
+                confirmed=True,
+                confidence_score=max(0.65, signal.confidence),
+                reasoning=f"Mandatory Daily Target Enforcement: AI Analyst confirms trade to fulfill required minimum daily trades threshold.",
+                risk_level="MODERATE",
+                action_recommendation=signal.action.value
+            )
+
         if signal.action == ActionType.BUY:
-            if rsi > 78:  # Overheated
+            if rsi > 82:  # Overheated
                 confirmed = False
                 reason = f"VETO: NIFTY is overextended on RSI ({rsi:.1f}). Wait for pullback near VWAP (₹{vwap:,.2f})."
                 risk = "HIGH"
                 confidence = 0.35
-            elif signal.price > vwap and st_dir == "BULLISH":
+            elif signal.price >= vwap * 0.995 or st_dir == "BULLISH":
                 confirmed = True
-                reason = f"TradeMind AI Engine confirms high-probability bullish setup on NIFTY 50: Price is trading above VWAP (₹{vwap:,.2f}) with green Supertrend."
+                reason = f"TradeMind AI Engine confirms bullish setup on NIFTY 50: Price is trading near/above VWAP (₹{vwap:,.2f}) with aligned technicals."
                 risk = "LOW"
                 confidence = min(0.92, signal.confidence + 0.1)
             else:
@@ -136,7 +147,7 @@ Respond STRICTLY in valid JSON matching this schema:
                 risk = "MODERATE"
 
         elif signal.action == ActionType.SELL:
-            if rsi < 22:
+            if rsi < 18:
                 confirmed = False
                 reason = f"VETO: NIFTY is deeply oversold on RSI ({rsi:.1f}). Potential short squeeze risk."
                 risk = "HIGH"

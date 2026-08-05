@@ -43,3 +43,16 @@ def test_supertrend_vwap_strategy_nifty(nifty_index_df):
     assert signal.strategy_name == "Supertrend_VWAP_Indian"
     assert "vwap" in signal.indicators
     assert "supertrend_direction" in signal.indicators
+
+
+def test_opportunistic_mandatory_signal(nifty_index_df):
+    from app.scheduler.runner import scheduler_runner
+    curr_price = float(nifty_index_df["close"].iloc[-1])
+    signal = scheduler_runner._evaluate_opportunistic_signal(nifty_index_df, "^NSEI", curr_price)
+    
+    assert signal.symbol == "^NSEI"
+    assert signal.action in [ActionType.BUY, ActionType.SELL]
+    assert signal.strategy_name == "Opportunistic_Mandatory_Daily_Target"
+    assert signal.confidence > 0.0
+    assert signal.indicators["is_mandatory_trade"] is True
+

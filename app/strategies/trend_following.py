@@ -51,37 +51,41 @@ class TrendFollowingStrategy(BaseStrategy):
             "volume_surge": round(vol_surge, 2),
         }
 
-        # Bullish conditions: Fast EMA above Slow EMA, MACD hist > 0 and increasing, price above EMA50 & EMA200
-        bullish_score = 0
+        # Bullish conditions: Fast EMA above Slow EMA, MACD hist > 0, price above EMA50/200, healthy RSI
+        bullish_score = 0.0
         if ema9 > ema21:
             bullish_score += 0.30
         if price > ema50:
             bullish_score += 0.20
-        if price > ema200:
+        if macd_hist > 0:
             bullish_score += 0.15
-        if macd_hist > 0 and macd_hist >= prev_macd_hist:
-            bullish_score += 0.20
-        if 45 <= rsi <= 72:
+            if macd_hist >= prev_macd_hist:
+                bullish_score += 0.05
+        if 40 <= rsi <= 75:
+            bullish_score += 0.15
+        if price > ema200:
             bullish_score += 0.10
-        if vol_surge >= 1.1:
-            bullish_score += 0.10
+        if vol_surge >= 1.05:
+            bullish_score += 0.05
 
-        # Bearish conditions: Fast EMA below Slow EMA, MACD hist < 0, price below EMA50 & EMA200
-        bearish_score = 0
+        # Bearish conditions: Fast EMA below Slow EMA, MACD hist < 0, price below EMA50/200, breakdown RSI
+        bearish_score = 0.0
         if ema9 < ema21:
             bearish_score += 0.30
         if price < ema50:
             bearish_score += 0.20
-        if price < ema200:
+        if macd_hist < 0:
             bearish_score += 0.15
-        if macd_hist < 0 and macd_hist <= prev_macd_hist:
-            bearish_score += 0.20
-        if 28 <= rsi <= 55:
+            if macd_hist <= prev_macd_hist:
+                bearish_score += 0.05
+        if 25 <= rsi <= 60:
+            bearish_score += 0.15
+        if price < ema200:
             bearish_score += 0.10
-        if vol_surge >= 1.1:
-            bearish_score += 0.10
+        if vol_surge >= 1.05:
+            bearish_score += 0.05
 
-        if bullish_score >= 0.70:
+        if bullish_score >= 0.52 and bullish_score > bearish_score:
             stop_loss = price - (1.5 * atr)
             take_profit = price + (3.5 * atr)  # Expanded 1:2.3+ R:R target
             vol_note = f", Vol Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""
@@ -93,11 +97,11 @@ class TrendFollowingStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Bullish trend confluence: EMA9 > EMA21, Price > EMA50/200, MACD momentum positive{vol_note}.",
+                reason=f"Bullish trend confluence: EMA9 > EMA21, Price > EMA50, MACD positive (Score: {bullish_score:.2f}){vol_note}.",
                 indicators=indicators_summary
             )
 
-        if bearish_score >= 0.70:
+        if bearish_score >= 0.52 and bearish_score > bullish_score:
             stop_loss = price + (1.5 * atr)
             take_profit = price - (3.5 * atr)
             vol_note = f", Vol Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""
@@ -109,7 +113,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Bearish trend breakdown: EMA9 < EMA21, Price < EMA50/200, MACD negative{vol_note}.",
+                reason=f"Bearish trend breakdown: EMA9 < EMA21, Price < EMA50, MACD negative (Score: {bearish_score:.2f}){vol_note}.",
                 indicators=indicators_summary
             )
 

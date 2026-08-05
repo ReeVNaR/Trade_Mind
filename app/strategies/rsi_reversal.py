@@ -45,8 +45,8 @@ class RSIReversalStrategy(BaseStrategy):
         }
 
         # Oversold Reversal (BUY)
-        if rsi < 32 and (price <= bb_lower or bb_percent <= 0.1):
-            confidence = min(0.95, 0.70 + (32 - rsi) * 0.015)
+        if rsi <= 38 or (price <= bb_lower or bb_percent <= 0.15):
+            confidence = min(0.95, 0.70 + max(0.0, (38 - rsi) * 0.015))
             stop_loss = min(price - (1.2 * atr), bb_lower - (0.5 * atr))
             take_profit = bb_middle
             return Signal(
@@ -57,13 +57,13 @@ class RSIReversalStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Oversold bounce detected: RSI at {rsi:.1f} <= 32 and price at lower Bollinger Band.",
+                reason=f"Oversold bounce detected: RSI at {rsi:.1f} <= 38 or price near lower Bollinger Band.",
                 indicators=indicators_summary
             )
 
         # Overbought Reversal (SELL)
-        if rsi > 68 and (price >= bb_upper or bb_percent >= 0.9):
-            confidence = min(0.95, 0.70 + (rsi - 68) * 0.015)
+        if rsi >= 62 or (price >= bb_upper or bb_percent >= 0.85):
+            confidence = min(0.95, 0.70 + max(0.0, (rsi - 62) * 0.015))
             stop_loss = max(price + (1.2 * atr), bb_upper + (0.5 * atr))
             take_profit = bb_middle
             return Signal(
@@ -74,7 +74,7 @@ class RSIReversalStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"Overbought exhaustion detected: RSI at {rsi:.1f} >= 68 and price at upper Bollinger Band.",
+                reason=f"Overbought exhaustion detected: RSI at {rsi:.1f} >= 62 or price near upper Bollinger Band.",
                 indicators=indicators_summary
             )
 

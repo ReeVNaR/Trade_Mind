@@ -31,6 +31,7 @@ class DailyRiskManager:
     """
 
     def __init__(self):
+        self.min_daily_trades = settings.MIN_DAILY_TRADES
         self.max_daily_trades = settings.MAX_DAILY_TRADES
         self.max_daily_loss = settings.MAX_DAILY_LOSS
         self.max_daily_profit = settings.MAX_DAILY_PROFIT
@@ -163,7 +164,10 @@ class DailyRiskManager:
             return {
                 "date_ist": str(today_ist),
                 "trades_today": trades_today_count,
+                "min_daily_trades": self.min_daily_trades,
                 "max_daily_trades": self.max_daily_trades,
+                "trades_needed_today": max(0, self.min_daily_trades - trades_today_count),
+                "is_min_trades_met": trades_today_count >= self.min_daily_trades,
                 "remaining_trades": max(0, self.max_daily_trades - trades_today_count),
                 "daily_realized_pnl": round(daily_realized_pnl, 2),
                 "daily_unrealized_pnl": round(daily_unrealized_pnl, 2),

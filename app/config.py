@@ -35,6 +35,7 @@ class Settings:
     TAKE_PROFIT_PERCENT: float = float(os.getenv("TAKE_PROFIT_PERCENT", "0.035"))        # Optional per-trade TP
     
     # NIFTY 50 Futures & Options (F&O) & Daily Circuit Configuration
+    MIN_DAILY_TRADES: int = int(os.getenv("MIN_DAILY_TRADES", "2"))                      # Mandatory min 2 trades per day
     MAX_DAILY_TRADES: int = int(os.getenv("MAX_DAILY_TRADES", "4"))                      # Max 3-4 trades per day
     MAX_DAILY_LOSS: float = float(os.getenv("MAX_DAILY_LOSS", "2000.0"))                  # Max ₹2,000 loss circuit
     MAX_DAILY_PROFIT: float = float(os.getenv("MAX_DAILY_PROFIT", "4000.0"))              # Max ₹4,000 profit circuit

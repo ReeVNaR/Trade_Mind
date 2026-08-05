@@ -51,11 +51,9 @@ class SupertrendVWAPStrategy(BaseStrategy):
 
         # High-Conviction Bullish Setup:
         # 1. Supertrend is Bullish Green (1)
-        # 2. Price is trading firmly above VWAP
-        # 3. RSI in healthy expansion zone (48 to 74)
-        # 4. Long-term trend alignment (Price above EMA50 / EMA200)
-        # 5. Volume surge bonus (higher confidence when volume >= 1.1x MA)
-        if st_dir == 1 and price > vwap and 48 <= rsi <= 74:
+        # 2. Price is trading at or above VWAP (with 0.2% tolerance for VWAP retests)
+        # 3. RSI in active zone (42 to 78)
+        if st_dir == 1 and price >= (vwap * 0.998) and 42 <= rsi <= 78:
             base_conf = 0.75
             if price > ema50:
                 base_conf += 0.08
@@ -77,13 +75,13 @@ class SupertrendVWAPStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"High-Profit Bullish Confluence: Supertrend Green, Close ₹{price:.2f} > VWAP ₹{vwap:.2f}, RSI {rsi:.1f}{vol_text}.",
+                reason=f"Bullish Confluence: Supertrend Green, Close ₹{price:.2f} near/above VWAP ₹{vwap:.2f}, RSI {rsi:.1f}{vol_text}.",
                 indicators=indicators_summary
             )
 
         # High-Conviction Bearish Setup:
-        # Supertrend is Red (-1), Price < VWAP, RSI breakdown (< 48)
-        if st_dir == -1 and price < vwap and rsi <= 48:
+        # Supertrend is Red (-1), Price at/below VWAP, RSI breakdown (<= 58)
+        if st_dir == -1 and price <= (vwap * 1.002) and rsi <= 58:
             base_conf = 0.75
             if price < ema50:
                 base_conf += 0.08
@@ -105,7 +103,7 @@ class SupertrendVWAPStrategy(BaseStrategy):
                 strategy_name=self.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                reason=f"High-Conviction Bearish Breakdown: Supertrend Red, Close ₹{price:.2f} < VWAP ₹{vwap:.2f}, RSI {rsi:.1f}{vol_text}.",
+                reason=f"Bearish Breakdown: Supertrend Red, Close ₹{price:.2f} near/below VWAP ₹{vwap:.2f}, RSI {rsi:.1f}{vol_text}.",
                 indicators=indicators_summary
             )
 
