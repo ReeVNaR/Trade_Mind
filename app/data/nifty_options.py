@@ -95,8 +95,9 @@ def get_nifty_itm_strike(
     symbol_name = f"NIFTY {strike} {opt_code}"
     trading_symbol = f"NIFTY{expiry_str}{strike}{opt_code}"
 
-    # Estimate option premium
-    days_to_exp = max(1, (expiry_dt - datetime.now(IST)).days)
+    # Use fractional days for more accurate premium on expiry day
+    time_to_exp = (expiry_dt - datetime.now(IST))
+    days_to_exp = max(0.1, time_to_exp.total_seconds() / 86400.0)
     premium = estimate_option_premium(
         spot_price=spot_price,
         strike_price=strike,
@@ -128,7 +129,7 @@ def estimate_option_premium(
     spot_price: float,
     strike_price: int,
     option_type: str,
-    days_to_expiry: int = 4,
+    days_to_expiry: float = 4.0,
     implied_volatility: float = 0.135
 ) -> float:
     """

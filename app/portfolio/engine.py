@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from app.config import settings
@@ -8,6 +8,21 @@ from app.strategies.base import Signal, ActionType
 from app.data.nifty_options import get_nifty_itm_strike, NIFTY_LOT_SIZE
 from app.portfolio.daily_risk import daily_risk_manager
 from app.utils.logger import logger
+
+
+class PositionDict(dict):
+    """Dictionary subclass supporting both key indexing and dot-attribute access."""
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(f"'PositionDict' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def to_dict(self):
+        return dict(self)
 
 
 class PortfolioEngine:
@@ -129,24 +144,26 @@ class PortfolioEngine:
                 "open_positions_count": len(positions),
                 "positions": positions_data,
                 "daily_risk": daily_stats,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         finally:
             db.close()
 
-    def get_open_positions(self) -> List[Position]:
-        """Returns list of active open positions."""
+    def get_open_positions(self) -> List[PositionDict]:
+        """Returns list of active open positions as serialized PositionDict objects (safe after session close)."""
         db: Session = SessionLocal()
         try:
-            return db.query(Position).all()
+            positions = db.query(Position).all()
+            return [PositionDict(p.to_dict()) for p in positions]
         finally:
             db.close()
 
-    def get_position(self, symbol: str) -> Optional[Position]:
-        """Returns active position for a specific symbol, if open."""
+    def get_position(self, symbol: str) -> Optional[PositionDict]:
+        """Returns active position for a specific symbol as PositionDict, if open."""
         db: Session = SessionLocal()
         try:
-            return db.query(Position).filter(Position.symbol == symbol).first()
+            pos = db.query(Position).filter(Position.symbol == symbol).first()
+            return PositionDict(pos.to_dict()) if pos else None
         finally:
             db.close()
 
@@ -318,7 +335,7 @@ class PortfolioEngine:
             pos = db.query(Position).filter(Position.symbol == symbol).first()
             if pos:
                 new_qty = pos.quantity + quantity
-                new_avg = ((pos.quantity * pos.average_entry_price) + total_deduction) / new_qty
+                new_avg = ((pos.quantity * pos.average_entry_price) + gross_cost + charges) / new_qty
                 pos.quantity = new_qty
                 pos.average_entry_price = new_avg
                 pos.current_price = price

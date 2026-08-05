@@ -89,25 +89,18 @@ class DailyRiskManager:
             now = current_datetime or datetime.now(IST)
             today_ist = self.get_today_date_ist(now)
             
-            # Fetch all trades to filter accurately by today's date in IST
-            all_trades = db.query(Trade).all()
-            today_trades = []
-            for t in all_trades:
-                if t.created_at:
-                    t_created = t.created_at
-                    if getattr(t_created, "tzinfo", None) is None:
-                        try:
-                            from zoneinfo import ZoneInfo
-                            utc_tz = ZoneInfo("UTC")
-                        except Exception:
-                            import pytz
-                            utc_tz = pytz.UTC
-                        t_ist = t_created.replace(tzinfo=utc_tz).astimezone(IST)
-                    else:
-                        t_ist = t_created.astimezone(IST)
-                    
-                    if t_ist.date() == today_ist:
-                        today_trades.append(t)
+            # Filter trades by today's date at DB level for efficiency
+            # Convert IST day boundaries to UTC for query (IST = UTC+5:30)
+            from datetime import timedelta, timezone as tz
+            ist_midnight_today = datetime.combine(today_ist, time(0, 0))
+            # IST midnight in UTC = IST midnight - 5:30
+            utc_start = ist_midnight_today - timedelta(hours=5, minutes=30)
+            utc_end = utc_start + timedelta(days=1)
+            
+            today_trades = db.query(Trade).filter(
+                Trade.created_at >= utc_start,
+                Trade.created_at < utc_end
+            ).all()
 
             trades_today_count = len(today_trades)
             closed_today = [t for t in today_trades if t.status == "CLOSED"]

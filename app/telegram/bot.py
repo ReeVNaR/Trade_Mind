@@ -35,12 +35,10 @@ class TelegramService:
         return bool(self.token)
 
     def is_admin(self, chat_id: Optional[str]) -> bool:
-        """Returns True if the chat_id is the designated bot administrator (CHAT_ID=8765494577)."""
-        if not chat_id:
+        """Returns True if the chat_id is the designated bot administrator (from CHAT_ID env var)."""
+        if not chat_id or not self.chat_id:
             return False
-        clean_id = str(chat_id).strip()
-        admin_id = str(self.chat_id or settings.CHAT_ID or "8765494577").strip()
-        return clean_id == admin_id or clean_id == "8765494577"
+        return str(chat_id).strip() == str(self.chat_id).strip()
 
     def register_or_update_subscriber(
         self,
@@ -463,10 +461,10 @@ class TelegramService:
             )
             self.send_message(reply, chat_id=chat_id)
 
-        # Community / Subscriber Stats (ADMIN ONLY - CHAT_ID: 8765494577)
+        # Community / Subscriber Stats (ADMIN ONLY)
         elif cmd in ["/subscribers", "/users", "/community", "/subscribers_list"]:
             if not self.is_admin(chat_id):
-                reply = "⛔ *Access Denied:* The `/subscribers` management command is restricted to the administrator (`8765494577`)."
+                reply = "⛔ *Access Denied:* The `/subscribers` management command is restricted to the bot administrator."
                 self.send_message(reply, chat_id=chat_id)
             else:
                 subs = self.get_all_subscribers(active_only=False)
@@ -635,7 +633,7 @@ class TelegramService:
         # 4b. Reset Portfolio Balance (Admin Only)
         elif cmd in ["/reset", "/resetportfolio", "reset"]:
             if not self.is_admin(chat_id):
-                reply = "⛔ *Access Denied:* The `/reset` portfolio command is restricted to the administrator (`8765494577`)."
+                reply = "⛔ *Access Denied:* The `/reset` portfolio command is restricted to the bot administrator."
                 self.send_message(reply, chat_id=chat_id)
             else:
                 from app.portfolio.engine import portfolio_engine

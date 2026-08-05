@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, Float, String, DateTime, Text, Boolean, Enum
 from sqlalchemy.orm import declarative_base
 import enum
@@ -35,7 +35,7 @@ class Trade(Base):
     realized_pnl = Column(Float, default=0.0)
     pnl_percent = Column(Float, default=0.0)
     reason = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     closed_at = Column(DateTime, nullable=True)
 
     def to_dict(self):
@@ -84,7 +84,7 @@ class Position(Base):
     strategy = Column(String(50), default="default")
     unrealized_pnl = Column(Float, default=0.0)
     unrealized_pnl_percent = Column(Float, default=0.0)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         pts_change = round(self.current_price - self.average_entry_price, 2)
@@ -124,7 +124,7 @@ class SignalLog(Base):
     ai_reasoning = Column(Text, nullable=True)
     ai_confirmed = Column(Boolean, default=False)
     executed = Column(Boolean, default=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -151,7 +151,7 @@ class PortfolioSnapshot(Base):
     equity = Column(Float, nullable=False)
     open_positions_count = Column(Integer, default=0)
     total_realized_pnl = Column(Float, default=0.0)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -173,8 +173,8 @@ class TelegramSubscriber(Base):
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True)  # True = receiving live alerts
-    subscribed_at = Column(DateTime, default=datetime.utcnow)
-    last_interaction_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    subscribed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_interaction_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

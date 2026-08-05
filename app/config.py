@@ -49,7 +49,6 @@ class Settings:
     def DEFAULT_SYMBOLS(self) -> List[str]:
         return [s.strip().upper() for s in self.DEFAULT_SYMBOLS_RAW.split(",") if s.strip()]
 
-        
     # Database & Auto-Lifecycle Management
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/trademind.db")
     AUTO_RESET_DB_ON_START: bool = os.getenv("AUTO_RESET_DB_ON_START", "true").strip().lower() in ["true", "1", "yes"]

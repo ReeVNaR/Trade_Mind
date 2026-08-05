@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from app.config import settings
@@ -67,7 +67,7 @@ def init_db(force_reset: bool = False):
                 db.query(Trade).filter(Trade.status == "OPEN").update({
                     "status": "CLOSED",
                     "reason": "Session Startup Auto-Reconciled",
-                    "closed_at": datetime.utcnow()
+                    "closed_at": datetime.now(timezone.utc)
                 })
                 logger.info(f"🧹 Auto-cleared {open_pos_count} stale intraday positions for fresh trading session.")
 
@@ -86,7 +86,7 @@ def init_db(force_reset: bool = False):
                 latest_snapshot.cash_balance = settings.INITIAL_BALANCE
                 latest_snapshot.equity = settings.INITIAL_BALANCE
                 latest_snapshot.open_positions_count = 0
-                latest_snapshot.total_realized_pnl = 0.0
+                # Preserve lifetime realized PnL across restarts
                 db.commit()
                 logger.info(f"Synchronized fresh session portfolio capital: ₹{settings.INITIAL_BALANCE:,.2f}")
         else:

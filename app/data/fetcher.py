@@ -267,7 +267,6 @@ class DataFetcher:
         """Fetches market data in parallel threads for lightning-fast UI responses."""
         with ThreadPoolExecutor(max_workers=4) as executor:
             traces = list(executor.map(lambda s: self._safe_trace(s), symbols))
-        return [t.to_dict() for t in traces if t is not None]
 
     def _safe_trace(self, sym: str) -> Optional[LiveStockTrace]:
         try:
@@ -278,80 +277,126 @@ class DataFetcher:
     def get_live_nifty_ticker(self) -> Dict[str, Any]:
         """
         Ultra-low-latency real-time live ticker for NIFTY 50 Index (^NSEI).
-        Fetches live exchange spot price via fast_info with 0-delay response.
+        Fetches live exchange spot price via fast_info / trace with 0-delay response.
+        Dynamically calculates 50 and 200 SMAs from real candles.
         """
-        now_ts = datetime.utcnow().timestamp()
+        now_ts = datetime.now(timezone.utc).timestamp()
         now_ist_str = datetime.now(IST).strftime("%I:%M:%S %p IST")
         now_date_str = datetime.now(IST).strftime("%d %b %Y")
+
+        last_price = None
+        prev_close = None
+        day_high = None
+        day_low = None
+        open_price = None
+        fifty_sma = None
+        two_hundred_sma = None
 
         try:
             ticker = yf.Ticker("^NSEI")
             fi = getattr(ticker, "fast_info", None)
             if fi:
-                last_price = float(fi.get("last_price") or fi.get("lastPrice") or 24774.30)
-                prev_close = float(fi.get("previous_close") or fi.get("previousClose") or fi.get("regularMarketPreviousClose") or 24383.60)
-                day_high = float(fi.get("day_high") or fi.get("dayHigh") or last_price)
-                day_low = float(fi.get("day_low") or fi.get("dayLow") or last_price)
-                open_price = float(fi.get("open") or last_price)
-                fifty_sma = float(fi.get("fifty_day_average") or fi.get("fiftyDayAverage") or 23910.38)
-                two_hundred_sma = float(fi.get("two_hundred_day_average") or fi.get("twoHundredDayAverage") or 24769.26)
-            else:
-                trace = self.trace_live_stock("^NSEI")
-                last_price = trace.current_price
-                prev_close = trace.previous_close
-                day_high = trace.day_high
-                day_low = trace.day_low
-                open_price = trace.open_price
-                fifty_sma = 23910.38
-                two_hundred_sma = 24769.26
-
-            change = last_price - prev_close
-            change_pct = (change / prev_close) * 100.0 if prev_close else 0.0
-
-            # Store last known price in memory
-            self._price_cache["^NSEI"] = {"cached_at": now_ts, "price": last_price}
-
-            return {
-                "symbol": "^NSEI",
-                "name": "NIFTY 50 INDEX (NSE INDIA)",
-                "current_price": round(last_price, 2),
-                "previous_close": round(prev_close, 2),
-                "open_price": round(open_price, 2),
-                "day_high": round(day_high, 2),
-                "day_low": round(day_low, 2),
-                "change": round(change, 2),
-                "change_percent": round(change_pct, 2),
-                "fifty_day_sma": round(fifty_sma, 2),
-                "two_hundred_day_sma": round(two_hundred_sma, 2),
-                "currency": "₹",
-                "market_status": self.get_market_status_ist(),
-                "timestamp_ist": now_ist_str,
-                "date_ist": now_date_str,
-                "latency": "0ms (Direct Live Feed)",
-                "tick_stream": "ACTIVE"
-            }
+                last_price = _get_fast_info_attr(fi, "last_price", "lastPrice")
+                prev_close = _get_fast_info_attr(fi, "previous_close", "previousClose", "regularMarketPreviousClose")
+                day_high = _get_fast_info_attr(fi, "day_high", "dayHigh")
+                day_low = _get_fast_info_attr(fi, "day_low", "dayLow")
+                open_price = _get_fast_info_attr(fi, "open")
+                fifty_sma = _get_fast_info_attr(fi, "fifty_day_average", "fiftyDayAverage")
+                two_hundred_sma = _get_fast_info_attr(fi, "two_hundred_day_average", "twoHundredDayAverage")
         except Exception as e:
-            logger.error(f"Error fetching live Nifty ticker: {e}")
-            cached_p = self._price_cache.get("^NSEI", {}).get("price", 24774.30)
-            return {
-                "symbol": "^NSEI",
-                "name": "NIFTY 50 INDEX (NSE INDIA)",
-                "current_price": round(cached_p, 2),
-                "previous_close": 24383.60,
-                "open_price": 24572.70,
-                "day_high": max(cached_p, 24774.30),
-                "day_low": min(cached_p, 24515.15),
-                "change": round(cached_p - 24383.60, 2),
-                "change_percent": round(((cached_p - 24383.60) / 24383.60) * 100, 2),
-                "fifty_day_sma": 23910.38,
-                "two_hundred_day_sma": 24769.26,
-                "currency": "₹",
-                "market_status": self.get_market_status_ist(),
-                "timestamp_ist": now_ist_str,
-                "date_ist": now_date_str,
-                "latency": "0ms (Cached Active)",
-                "tick_stream": "ACTIVE"
-            }
+            logger.debug(f"yfinance fast_info lookup notice: {e}")
+
+        # Fallback to trace_live_stock if fast_info missing primary fields
+        if not last_price or not prev_close:
+            try:
+                trace = self.trace_live_stock("^NSEI")
+                last_price = last_price or trace.current_price
+                prev_close = prev_close or trace.previous_close
+                day_high = day_high or trace.day_high
+                day_low = day_low or trace.day_low
+                open_price = open_price or trace.open_price
+            except Exception as e:
+                logger.error(f"Live trace fallback failed: {e}")
+
+        # Dynamically compute SMAs from OHLCV if missing from fast_info
+        if not fifty_sma or not two_hundred_sma:
+            try:
+                df = self.fetch_ohlcv("^NSEI", period="1y", interval="1d")
+                if not df.empty and "close" in df.columns:
+                    closes = df["close"]
+                    if not fifty_sma and len(closes) >= 50:
+                        fifty_sma = float(closes.tail(50).mean())
+                    elif not fifty_sma:
+                        fifty_sma = float(closes.mean())
+
+                    if not two_hundred_sma and len(closes) >= 200:
+                        two_hundred_sma = float(closes.tail(200).mean())
+                    elif not two_hundred_sma:
+                        two_hundred_sma = float(closes.mean())
+            except Exception as e:
+                logger.debug(f"Dynamic SMA calculation notice: {e}")
+
+        # Final check against last known in-memory price
+        if not last_price:
+            cached_entry = self._price_cache.get("^NSEI", {})
+            last_price = cached_entry.get("price")
+            if not last_price:
+                raise ValueError("Real-time NIFTY 50 price feed currently unavailable.")
+
+        if not prev_close:
+            prev_close = last_price
+        if not day_high:
+            day_high = last_price
+        if not day_low:
+            day_low = last_price
+        if not open_price:
+            open_price = last_price
+        if not fifty_sma:
+            fifty_sma = last_price
+        if not two_hundred_sma:
+            two_hundred_sma = last_price
+
+        change = last_price - prev_close
+        change_pct = (change / prev_close) * 100.0 if prev_close else 0.0
+
+        self._price_cache["^NSEI"] = {"cached_at": now_ts, "price": last_price}
+
+        return {
+            "symbol": "^NSEI",
+            "name": "NIFTY 50 INDEX (NSE INDIA)",
+            "current_price": round(last_price, 2),
+            "previous_close": round(prev_close, 2),
+            "open_price": round(open_price, 2),
+            "day_high": round(day_high, 2),
+            "day_low": round(day_low, 2),
+            "change": round(change, 2),
+            "change_percent": round(change_pct, 2),
+            "fifty_day_sma": round(fifty_sma, 2),
+            "two_hundred_day_sma": round(two_hundred_sma, 2),
+            "currency": "₹",
+            "market_status": self.get_market_status_ist(),
+            "timestamp_ist": now_ist_str,
+            "date_ist": now_date_str,
+            "latency": "0ms (Direct Live Feed)",
+            "tick_stream": "ACTIVE"
+        }
+
+
+def _get_fast_info_attr(fi, *attrs, default=None):
+    """Safely extracts attribute from yfinance FastInfo object or dictionary."""
+    if not fi:
+        return default
+    for attr in attrs:
+        try:
+            if isinstance(fi, dict):
+                val = fi.get(attr)
+            else:
+                val = getattr(fi, attr, None)
+            if val is not None and not (isinstance(val, float) and np.isnan(val)):
+                return float(val)
+        except Exception:
+            continue
+    return default
 
 
 data_fetcher = DataFetcher()
