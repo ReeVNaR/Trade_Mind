@@ -65,7 +65,7 @@ class SupertrendVWAPStrategy(BaseStrategy):
                 base_conf += 0.08
 
             confidence = min(0.95, base_conf)
-            stop_loss = max(st_band, price - (1.5 * atr))
+            stop_loss = min(price - (0.5 * atr), max(st_band, price - (1.5 * atr)))
             take_profit = price + (3.5 * atr)  # Expanded 1:2.3+ R:R target
             
             vol_text = f", Volume Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""
@@ -93,7 +93,7 @@ class SupertrendVWAPStrategy(BaseStrategy):
                 base_conf += 0.08
 
             confidence = min(0.95, base_conf)
-            stop_loss = min(st_band, price + (1.5 * atr))
+            stop_loss = max(price + (0.5 * atr), min(st_band, price + (1.5 * atr)))
             take_profit = price - (3.5 * atr)
             
             vol_text = f", Volume Surge {vol_surge:.1f}x" if vol_surge >= 1.1 else ""

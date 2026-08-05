@@ -572,6 +572,7 @@ class PortfolioEngine:
                         if not pos.trailing_stop or trail_level > pos.trailing_stop:
                             pos.trailing_stop = trail_level
                             pos.stop_loss = max(pos.stop_loss or 0.0, trail_level)
+                            db.commit()
                             logger.info(f"📈 Trailing Stop-Loss ratcheted for {pos.symbol} to ₹{trail_level:,.2f} (Peak ₹{pos.highest_price:,.2f})")
 
                     # Check explicit SL / Trailing Stop Trigger

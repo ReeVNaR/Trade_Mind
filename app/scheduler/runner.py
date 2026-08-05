@@ -56,14 +56,19 @@ class SchedulerRunner:
         current_prices: Dict[str, float] = {}
         signals_processed = 0
 
+        now_ist_time = datetime.now(IST).time()
+        is_after_1520 = now_ist_time >= time(15, 20)
+
         for symbol in symbols:
             try:
                 logger.info(f"Scanning market data for {symbol} (NIFTY 50 Index)...")
                 df = data_fetcher.fetch_ohlcv(symbol, period="10d", interval="15m")
                 if df.empty or len(df) < 20:
-                    logger.warning(f"Not enough candle data for {symbol}")
+                    logger.warning(f"Not enough candle data for {symbol}, skipping scan.")
+                    continue
+
                 ticker = data_fetcher.get_live_nifty_ticker()
-                curr_price = ticker["current_price"] if (ticker and ticker.get("current_price", 0) > 0) else float(df["close"].iloc[-1])
+                curr_price = (ticker.get("current_price") if ticker else None) or float(df["close"].iloc[-1])
                 current_prices[symbol] = curr_price
 
                 # Evaluate all active strategies
@@ -86,9 +91,10 @@ class SchedulerRunner:
                             "option_contract": display_contract
                         })
 
-                        # Verify if market and circuit permit execution
+                        # Verify if market, time cutoff, and circuit permit execution
                         can_open_trades, circuit_status_msg = daily_risk_manager.can_open_new_trade(symbol=itm_info["symbol"])
-                        should_execute = (is_open or force) and ai_result.confirmed and can_open_trades
+                        time_allowed = not is_after_1520 or force
+                        should_execute = (is_open or force) and time_allowed and ai_result.confirmed and can_open_trades
 
                         # Execute Paper Order ONLY if conditions are met
                         executed_trade = None
@@ -124,10 +130,12 @@ class SchedulerRunner:
                                 ai_result=ai_result,
                                 spot_price=curr_price
                             )
+                            # Single order per scan cycle to prevent over-leveraging
+                            break
                         else:
                             logger.info(
                                 f"ℹ️ Signal {signal.action.value} for {itm_info['symbol']} not executed "
-                                f"(AI Confirmed: {ai_result.confirmed}, Market Open: {is_open}, Circuit OK: {can_open_trades}). "
+                                f"(AI Confirmed: {ai_result.confirmed}, Market Open: {is_open}, Time OK: {time_allowed}, Circuit OK: {can_open_trades}). "
                                 f"No Telegram alert sent."
                             )
 

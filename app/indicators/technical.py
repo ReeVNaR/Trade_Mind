@@ -136,17 +136,21 @@ class TechnicalIndicators:
         direction = np.ones(n)  # 1 for bullish (buy), -1 for bearish (sell)
         
         for i in range(1, n):
-            if close[i - 1] > upper_band[i - 1]:
-                upper_band[i] = max(upper_band[i], upper_band[i - 1])
-            if close[i - 1] < lower_band[i - 1]:
-                lower_band[i] = min(lower_band[i], lower_band[i - 1])
+            if close[i - 1] <= upper_band[i - 1]:
+                upper_band[i] = min(upper_band[i], upper_band[i - 1])
+            if close[i - 1] >= lower_band[i - 1]:
+                lower_band[i] = max(lower_band[i], lower_band[i - 1])
                 
-            if direction[i - 1] == 1 and close[i] < lower_band[i - 1]:
-                direction[i] = -1
-            elif direction[i - 1] == -1 and close[i] > upper_band[i - 1]:
-                direction[i] = 1
+            if direction[i - 1] == 1:
+                if close[i] < lower_band[i]:
+                    direction[i] = -1
+                else:
+                    direction[i] = 1
             else:
-                direction[i] = direction[i - 1]
+                if close[i] > upper_band[i]:
+                    direction[i] = 1
+                else:
+                    direction[i] = -1
                 
             supertrend[i] = lower_band[i] if direction[i] == 1 else upper_band[i]
 
