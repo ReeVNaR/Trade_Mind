@@ -11,6 +11,7 @@ from database.connection import init_db, get_db_session
 from database.models import Trade, Order
 from scheduler.live_scanner import LiveMarketScanner
 from telegram.notifier import TelegramNotifier
+from telegram.bot_commands import TelegramCommandHandler
 from utils.logger import logger
 
 app = FastAPI(
@@ -34,17 +35,20 @@ broker.connect()
 risk_manager = RiskManager()
 notifier = TelegramNotifier()
 scanner = LiveMarketScanner(broker=broker, risk_manager=risk_manager, notifier=notifier)
+cmd_handler = TelegramCommandHandler(scanner=scanner, broker=broker, risk_manager=risk_manager)
 is_trading_paused = False
 
 @app.on_event("startup")
 def startup_event():
     init_db()
     scanner.start()
-    logger.info("FastAPI Server Started with Live Market Scanner active.")
+    cmd_handler.start()
+    logger.info("FastAPI Server Started with Live Market Scanner and Telegram Command Listener active.")
 
 @app.on_event("shutdown")
 def shutdown_event():
     scanner.stop()
+    cmd_handler.stop()
     logger.info("FastAPI Server Stopping...")
 
 @app.get("/health")
