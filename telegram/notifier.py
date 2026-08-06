@@ -37,26 +37,28 @@ class TelegramNotifier:
             logger.error(f"Error sending Telegram message: {e}")
             return False
 
-    def notify_startup(self, capital: float, mode: str = "Paper Trading"):
+    def notify_startup(self, capital: float, mode: str = "LIVE"):
         """Startup alert."""
+        mode_str = "🔴 LIVE TRADING MODE (Real Capital)" if settings.TRADING_MODE.upper() == "LIVE" else "🟦 PAPER TRADING MODE"
         text = (
             f"🚀 *{settings.PROJECT_NAME} Started*\n\n"
-            f"🔹 *Mode*: {mode}\n"
-            f"💰 *Capital*: ₹{capital:,.2f}\n"
+            f"⚡ *Mode*: *{mode_str}*\n"
+            f"💰 *Trading Capital*: ₹{capital:,.2f}\n"
             f"🎯 *Max Daily Loss*: ₹{settings.MAX_DAILY_LOSS:,.2f}\n"
             f"🏆 *Max Daily Profit*: ₹{settings.MAX_DAILY_PROFIT:,.2f}\n"
-            f"⏰ *Time*: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"⏰ *Time*: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}"
         )
         self.send_message_sync(text)
 
     def notify_signal(self, signal: Any):
         """Trade signal alert."""
+        mode_tag = "🔴 LIVE SIGNAL" if settings.TRADING_MODE.upper() == "LIVE" else "🟦 PAPER SIGNAL"
         text = (
-            f"📢 *NEW TRADE SIGNAL*\n\n"
+            f"📢 *{mode_tag} EXECUTED*\n\n"
             f"⚡ *Strategy*: {signal.strategy_name}\n"
             f"📈 *Instrument*: `{signal.symbol}` ({signal.option_type})\n"
             f"🎯 *Direction*: {signal.direction}\n"
-            f"💵 *Entry*: ₹{signal.entry_price:.2f}\n"
+            f"💵 *Entry Price*: ₹{signal.entry_price:.2f}\n"
             f"🛑 *Stop Loss*: ₹{signal.stop_loss:.2f}\n"
             f"🎯 *Target*: ₹{signal.target:.2f}\n"
             f"🤖 *AI Confidence*: *{signal.confidence}%*\n\n"
@@ -66,8 +68,9 @@ class TelegramNotifier:
 
     def notify_order_execution(self, order: Dict[str, Any]):
         """Order execution alert."""
+        mode_tag = "🔴 LIVE ORDER EXECUTED" if settings.TRADING_MODE.upper() == "LIVE" else "🟦 PAPER ORDER EXECUTED"
         text = (
-            f"✅ *ORDER EXECUTED*\n\n"
+            f"✅ *{mode_tag}*\n\n"
             f"🆔 *Order ID*: `{order['order_id']}`\n"
             f"📊 *Symbol*: `{order['symbol']}`\n"
             f"🔄 *Type*: {order['direction']} {order['quantity']} qty\n"

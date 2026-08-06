@@ -150,3 +150,45 @@
 2026-08-07 00:18:56 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
 2026-08-07 00:18:57 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
 2026-08-07 00:18:59 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:09 | INFO     | trademind:connect:18 - PaperBroker connected successfully.
+2026-08-07 00:25:09 | INFO     | trademind:init_db:20 - Database initialized successfully at sqlite:///E:\Projects\TRADE\trade.db
+2026-08-07 00:25:09 | INFO     | trademind:connect:18 - PaperBroker connected successfully.
+2026-08-07 00:25:09 | INFO     | trademind:_execute_order:164 - Executed Order PAPER-ORD-197e4f4b | BUY 65 NIFTY24AUG22500CE @ ₹100.05 | Realized PnL: ₹0.00
+2026-08-07 00:25:09 | INFO     | trademind:_execute_order:164 - Executed Order PAPER-ORD-36912544 | SELL 65 NIFTY24AUG22500CE @ ₹119.94 | Realized PnL: ₹1292.85
+2026-08-07 00:25:09 | INFO     | trademind:connect:18 - PaperBroker connected successfully.
+2026-08-07 00:25:09 | WARNING  | trademind:place_order:59 - Order rejected: Insufficient margin. Required ₹13000.00, Available ₹5000.00
+2026-08-07 00:25:13 | WARNING  | trademind:_log_risk_event:133 - Risk Manager Alert [CIRCUIT_BREAKER]: Max Daily Loss limit hit (-₹2100.00 <= -₹2000.00)
+2026-08-07 00:25:13 | INFO     | trademind:evaluate_signal:82 - AI Signal Approved: NIFTY_22500_CE with score 90.0%
+2026-08-07 00:25:13 | INFO     | trademind:evaluate_signal:84 - AI Signal Rejected: NIFTY_22500_CE score 62.0% < threshold 80.0%
+2026-08-07 00:25:15 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:17 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:19 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:22 | ERROR    | trademind:send_message_sync:34 - Failed to send Telegram message: 400 - {"ok":false,"error_code":400,"description":"Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 49"}
+2026-08-07 00:25:22 | INFO     | trademind:init_db:20 - Database initialized successfully at sqlite:///E:\Projects\TRADE\trade.db
+2026-08-07 00:25:22 | INFO     | trademind:connect:18 - PaperBroker connected successfully.
+2026-08-07 00:25:25 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:25 | INFO     | trademind:_execute_order:164 - Executed Order PAPER-ORD-5713b04d | BUY 65 NIFTY_22500_CE @ ₹120.06 | Realized PnL: ₹0.00
+2026-08-07 00:25:26 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:26 | INFO     | trademind:execute_signal:114 - Persisted Trade TRD-8e0f544b to Database successfully.
+2026-08-07 00:25:26 | INFO     | trademind:_execute_order:164 - Executed Order PAPER-ORD-f76237a4 | SELL 65 NIFTY_22500_CE @ ₹159.92 | Realized PnL: ₹2590.90
+2026-08-07 00:25:27 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:27 | INFO     | trademind:close_trade:169 - Closed Trade TRD-8e0f544b | Exit Price: ₹159.92 | PnL: ₹2590.90
+2026-08-07 00:25:27 | INFO     | trademind:stop:53 - LiveMarketScanner stopping.
+2026-08-07 00:25:27 | INFO     | trademind:pause_trading:139 - Trading PAUSED by API request.
+2026-08-07 00:25:27 | INFO     | trademind:start:47 - 🚀 Live Market Scanner background thread started.
+2026-08-07 00:25:30 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:30 | INFO     | trademind:resume_trading:147 - Trading RESUMED by API request.
+2026-08-07 00:25:30 | INFO     | trademind:connect:18 - PaperBroker connected successfully.
+2026-08-07 00:25:31 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:34 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:35 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:36 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:38 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:39 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:42 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:42 | INFO     | trademind:stop:53 - LiveMarketScanner stopping.
+2026-08-07 00:25:43 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:43 | INFO     | trademind:start:47 - 🚀 Live Market Scanner background thread started.
+2026-08-07 00:25:45 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:46 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
+2026-08-07 00:25:47 | INFO     | trademind:send_message_sync:31 - Telegram notification sent successfully.
