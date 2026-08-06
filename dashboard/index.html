@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeMind-AI | NIFTY F&O Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-card: rgba(18, 26, 44, 0.75);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.3rem;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .brand-title h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #fff, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-paper {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .btn-toggle {
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-pause {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-resume {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.25rem;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+
+        .text-green { color: var(--accent-green); }
+        .text-red { color: var(--accent-red); }
+        .text-blue { color: var(--accent-blue); }
+
+        .layout-main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 992px) {
+            .layout-main { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-card);
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .feed-item {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .system-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="brand">
+            <div class="brand-logo">TM</div>
+            <div class="brand-title">
+                <h1>TradeMind-AI Bot</h1>
+                <p>NIFTY F&O Production Dashboard</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="badge badge-paper">
+                <span class="pulse-dot"></span> PAPER TRADING
+            </div>
+            <button id="btnPauseResume" class="btn-toggle btn-pause" onclick="toggleTrading()">Pause Trading</button>
+        </div>
+    </div>
+
+    <!-- Capital Stats Cards -->
+    <div class="grid-stats">
+        <div class="stat-card">
+            <div class="stat-label">Total Capital</div>
+            <div class="stat-value" id="valCapital">₹30,000.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Today's Realized PnL</div>
+            <div class="stat-value text-green" id="valPnL">+₹0.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Available Margin</div>
+            <div class="stat-value text-blue" id="valMargin">₹30,000.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">NIFTY Spot LTP</div>
+            <div class="stat-value" id="valNiftyLtp">22,500.00</div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="layout-main">
+        <div>
+            <!-- Active Positions -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Active Open Positions</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Avg Price</th>
+                            <th>LTP</th>
+                            <th>Unrealized PnL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblPositions">
+                        <tr>
+                            <td colspan="5" style="text-align:center; color: var(--text-secondary);">No active positions</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Recent Executed Orders -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Recent Orders</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Order ID</th>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblOrders">
+                        <tr>
+                            <td colspan="6" style="text-align:center; color: var(--text-secondary);">No orders executed today</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <!-- AI Signals Feed -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">AI Decision Signal Feed</div>
+                </div>
+                <div id="aiFeed">
+                    <div class="feed-item">
+                        <strong>AI Engine Initialized</strong><br>
+                        Scanning NIFTY F&O universe (EMA Crossover, VWAP, PCR, VIX). Threshold: 80%
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">System Health & Render Status</div>
+                </div>
+                <div class="system-bar">
+                    <span>CPU Usage</span>
+                    <strong id="valCpu">3.2%</strong>
+                </div>
+                <div class="system-bar">
+                    <span>RAM Usage</span>
+                    <strong id="valRam">145 MB</strong>
+                </div>
+                <div class="system-bar">
+                    <span>Broker Connection</span>
+                    <strong class="text-green">CONNECTED</strong>
+                </div>
+                <div class="system-bar">
+                    <span>Telegram Alerting</span>
+                    <strong class="text-green">ACTIVE</strong>
+                </div>
+                <div class="system-bar">
+                    <span>Uptime</span>
+                    <strong id="valUptime">0h 15m</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isTradingPaused = false;
+
+        async function fetchDashboardData() {
+            try {
+                const res = await fetch('/api/balance');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('valCapital').innerText = '₹' + data.total_portfolio_value.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                    const pnlElem = document.getElementById('valPnL');
+                    const pnlVal = data.realized_pnl;
+                    pnlElem.innerText = (pnlVal >= 0 ? '+' : '') + '₹' + pnlVal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                    pnlElem.className = 'stat-value ' + (pnlVal >= 0 ? 'text-green' : 'text-red');
+                    document.getElementById('valMargin').innerText = '₹' + data.available_margin.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                }
+            } catch (err) {
+                console.error("Dashboard update error:", err);
+            }
+        }
+
+        async function toggleTrading() {
+            const btn = document.getElementById('btnPauseResume');
+            if (!isTradingPaused) {
+                await fetch('/api/pause', {method: 'POST'});
+                btn.innerText = 'Resume Trading';
+                btn.className = 'btn-toggle btn-resume';
+                isTradingPaused = true;
+            } else {
+                await fetch('/api/resume', {method: 'POST'});
+                btn.innerText = 'Pause Trading';
+                btn.className = 'btn-toggle btn-pause';
+                isTradingPaused = false;
+            }
+        }
+
+        setInterval(fetchDashboardData, 3000);
+        fetchDashboardData();
+    </script>
+</body>
+</html>

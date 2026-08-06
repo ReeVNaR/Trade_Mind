@@ -1,0 +1,540 @@
+# AI Prompt: Build a Production-Ready NIFTY F&O Trading Bot
+
+You are an expert Quantitative Trader, Python Developer, AI Engineer, and Software Architect. Build a **production-ready, modular, scalable, and secure AI-powered NIFTY F&O Trading Bot** for the Indian stock market.
+
+The bot must support **Paper Trading** and **Live Trading**, be deployable on **Render**, and follow clean architecture, SOLID principles, and best coding practices.
+
+---
+
+# Primary Objectives
+
+The bot should:
+
+* Trade NIFTY Futures & Options.
+* Analyze the market in real time.
+* Generate high-confidence trade signals.
+* Execute trades automatically.
+* Manage risk intelligently.
+* Send detailed Telegram notifications.
+* Maintain complete logs.
+* Provide a dashboard and REST API.
+* Support backtesting and paper trading.
+* Be reliable enough for production use.
+
+---
+
+# Tech Stack
+
+* Python 3.12+
+* FastAPI
+* AsyncIO
+* Pandas
+* NumPy
+* TA / Pandas-TA
+* SQLAlchemy
+* WebSockets
+* Plotly
+* PostgreSQL (Production)
+* SQLite (Development)
+* Telegram Bot API
+* Docker Compatible
+* Deploy on Render
+
+---
+
+# Project Structure
+
+Create a clean modular architecture.
+
+Example modules:
+
+```
+config/
+broker/
+market_data/
+strategies/
+ai_engine/
+risk_management/
+orders/
+backtesting/
+paper_trading/
+telegram/
+database/
+dashboard/
+api/
+scheduler/
+utils/
+logs/
+tests/
+```
+
+---
+
+# 1. Market Data Module
+
+Continuously fetch:
+
+* NIFTY Spot
+* NIFTY Futures
+* Option Chain
+* ATM/ITM/OTM strikes
+* Volume
+* Open Interest
+* Change in OI
+* Put Call Ratio (PCR)
+* Max Pain
+* India VIX
+* Implied Volatility
+* Greeks (Delta, Gamma, Theta, Vega)
+* Market Breadth
+* Global Indices
+* USDINR
+* GIFT Nifty
+* Economic Calendar
+* High Impact News
+
+Use WebSockets whenever possible.
+
+Refresh every 1–5 seconds.
+
+---
+
+# 2. Technical Indicators
+
+Calculate:
+
+* EMA
+* SMA
+* VWAP
+* RSI
+* MACD
+* ADX
+* ATR
+* Bollinger Bands
+* Supertrend
+* Support & Resistance
+* Volume Profile
+
+---
+
+# 3. Trading Strategies
+
+Support multiple strategies.
+
+### Trend Following
+
+* EMA Crossovers
+* VWAP
+* Supertrend
+* ADX Confirmation
+
+### Breakout
+
+* Opening Range Breakout
+* Previous Day High/Low
+* Volume Breakout
+
+### Reversal
+
+* RSI
+* Bollinger Bands
+* Divergence
+
+### Scalping
+
+* Momentum
+* VWAP Rejection
+* Order Flow
+
+### Option Buying
+
+* Long Call
+* Long Put
+* Debit Spread
+
+### Option Selling
+
+* Iron Condor
+* Iron Fly
+* Short Strangle
+* Credit Spread
+
+Strategies must be independently configurable.
+
+---
+
+# 4. AI Decision Engine
+
+Instead of relying solely on indicators, analyze:
+
+* Trend
+* Volatility
+* OI Build-up
+* Option Chain
+* Greeks
+* Volume
+* Momentum
+* News
+* Market Breadth
+* Institutional Activity
+
+Generate:
+
+* Trade Direction
+* Confidence Score (0–100%)
+* Entry
+* Stop Loss
+* Target(s)
+* Position Size
+* Risk-Reward Ratio
+
+Only execute trades above a configurable confidence threshold (e.g., 80%).
+
+Explain every trade in plain English.
+
+Example:
+
+> EMA20 crossed EMA50, price above VWAP, bullish OI build-up, RSI 65, ADX 30, PCR bullish. Confidence: 91%.
+
+---
+
+# 5. Risk Management
+
+Highest priority.
+
+Include:
+
+* Maximum Daily Loss
+* Maximum Daily Profit
+* Maximum Trades Per Day
+* Maximum Consecutive Losses
+* Risk Per Trade
+* Dynamic Position Sizing
+* Margin Check
+* Exposure Limits
+* Trailing Stop Loss
+* Break-even Stop
+* Partial Profit Booking
+* Multiple Targets
+* Time-based Exit
+* ATR-based Stop Loss
+* Volatility-based Stop Loss
+
+If daily loss limit is hit:
+
+* Close all positions
+* Stop trading
+* Notify on Telegram
+
+---
+
+# 6. Order Management
+
+Workflow:
+
+Signal
+→ Validate
+→ Margin Check
+→ Duplicate Check
+→ Place Order
+→ Verify Execution
+→ Place SL
+→ Place Target
+→ Trail SL
+→ Exit
+→ Save Trade
+
+Handle:
+
+* API failures
+* Broker disconnects
+* Partial fills
+* Duplicate orders
+* Order rejection
+* Retry logic
+* Slippage
+* Network failures
+
+---
+
+# 7. Paper Trading & Backtesting
+
+Support:
+
+* Paper Trading
+* Historical Backtesting
+* Replay Mode
+
+Performance Metrics:
+
+* Win Rate
+* ROI
+* CAGR
+* Sharpe Ratio
+* Sortino Ratio
+* Profit Factor
+* Drawdown
+* Expectancy
+* Consecutive Wins/Losses
+
+---
+
+# 8. Database
+
+Store:
+
+* Trades
+* Orders
+* Logs
+* Daily Reports
+* Strategy Performance
+* Errors
+* Risk Events
+* API Calls
+
+Use:
+
+* SQLite (Development)
+* PostgreSQL (Render Production)
+
+---
+
+# 9. Telegram Integration
+
+Send rich notifications for:
+
+### Startup
+
+* Bot Started
+* Broker Connected
+* Capital
+* Strategy
+* Market Status
+
+### Trade Signals
+
+* Buy/Sell
+* CE/PE
+* Strike
+* Entry
+* Quantity
+* Stop Loss
+* Targets
+* Confidence
+* Strategy
+* Reason
+
+### Order Updates
+
+* Executed
+* Rejected
+* Cancelled
+* Modified
+
+### Risk Events
+
+* Stop Loss Hit
+* Target Hit
+* Trailing Stop Updated
+* Daily Loss Reached
+
+### Reports
+
+Daily
+
+Weekly
+
+Monthly
+
+Include:
+
+* Total Trades
+* Wins
+* Losses
+* Win Rate
+* Net Profit
+* ROI
+* Drawdown
+* Best Trade
+* Worst Trade
+
+### Errors
+
+Immediately notify:
+
+* Broker Offline
+* API Failure
+* Internet Lost
+* Telegram Failure
+* Database Error
+* Server Crash
+
+---
+
+# 10. Dashboard
+
+Create a live dashboard showing:
+
+* Capital
+* Today's PnL
+* Open Positions
+* Orders
+* Active Strategy
+* Confidence
+* Market Trend
+* Win Rate
+* Drawdown
+* Broker Status
+* Telegram Status
+* CPU
+* RAM
+* Uptime
+
+---
+
+# 11. REST API
+
+Using FastAPI.
+
+Provide endpoints for:
+
+* Health
+* Current Positions
+* Open Orders
+* Closed Trades
+* PnL
+* Strategy Status
+* Market Status
+* Pause Trading
+* Resume Trading
+* Restart Bot
+
+---
+
+# 12. Render Deployment
+
+The application must be fully deployable on **Render**.
+
+Provide:
+
+* requirements.txt
+* render.yaml
+* Dockerfile (optional)
+* README.md
+* .env.example
+
+Use Render Environment Variables for:
+
+* Telegram Token
+* Chat ID
+* Broker Credentials
+* Database URL
+* API Keys
+* Trading Mode
+
+On startup:
+
+1. Load configuration
+2. Validate environment variables
+3. Connect broker
+4. Connect Telegram
+5. Initialize database
+6. Start WebSockets
+7. Load strategies
+8. Start monitoring
+9. Send "Bot Started" Telegram notification
+
+Expose:
+
+```
+GET /health
+```
+
+Health response should include:
+
+* Broker Status
+* Database Status
+* Telegram Status
+* WebSocket Status
+* Market Status
+* Uptime
+
+Implement:
+
+* Auto reconnect
+* Retry with exponential backoff
+* Crash recovery
+* Graceful shutdown
+* Async background tasks
+* Production logging
+
+---
+
+# 13. Security
+
+* Never hardcode secrets.
+* Use environment variables.
+* Authenticate dashboard and APIs.
+* Validate all inputs.
+* Mask sensitive data in logs.
+* Prevent duplicate trade execution.
+* Respect broker API rate limits.
+
+---
+
+# 14. Logging
+
+Maintain detailed logs for:
+
+* Trades
+* Orders
+* Signals
+* API Calls
+* Errors
+* Telegram
+* Performance
+* Risk Events
+
+Store logs in both:
+
+* Console
+* Database
+
+---
+
+# 15. AI Enhancements
+
+The bot should intelligently:
+
+* Detect Trending vs Sideways markets.
+* Automatically choose the best strategy.
+* Adapt Stop Loss and Targets using ATR/Volatility.
+* Avoid major news events.
+* Disable consistently underperforming strategies.
+* Learn from historical performance.
+* Recommend optimal position sizing.
+* Generate end-of-day AI summaries with insights and suggested improvements.
+
+---
+
+# Final Deliverables
+
+Generate a complete production-ready project including:
+
+* Clean folder structure
+* Fully documented source code
+* Configuration system
+* Broker abstraction layer
+* Strategy engine
+* AI decision engine
+* Risk management
+* Order execution
+* Telegram integration
+* Dashboard
+* REST API
+* Database models
+* Render deployment files
+* Unit tests
+* README with setup instructions
+
+The code should be modular, maintainable, extensible, well-commented, and optimized for continuous deployment on Render with support for both paper trading and live NIFTY F&O trading.

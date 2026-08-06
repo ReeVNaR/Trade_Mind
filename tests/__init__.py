@@ -1,3 +1,1 @@
-"""
-TradeMind-AI Test Suite
-"""
+"""Test suite for TradeMind-AI Trading Bot."""

@@ -1,233 +1,54 @@
-# TradeMind-AI 🇮🇳 🚀
-> **Autonomous AI-Powered Algorithmic Trading & Live Market Tracing Engine for Indian Stock Markets (NSE / BSE)**
+# TradeMind-AI: Production-Ready NIFTY F&O AI Trading Bot
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com)
-[![Render](https://img.shields.io/badge/Render-Deploy%20Ready-black.svg?logo=render)](https://render.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+An advanced, production-ready, modular, and secure AI-powered NIFTY F&O Trading Bot designed for the Indian Stock Market.
 
-TradeMind-AI is an institutional-grade algorithmic trading and portfolio management framework specialized for the **Indian Stock Market (NSE / BSE)**. It integrates real-time National Stock Exchange ticks, quantitative multi-indicator technical analysis (Supertrend, VWAP, RSI, EMA, MACD, Bollinger Bands), risk-managed paper trading in **₹ INR**, and **Google Gemini LLM reasoning** with **Telegram bot execution and alerts**.
+## Key Features
 
----
-
-## 🌟 Key Capabilities
-
-- 🇮🇳 **NIFTY 50 Index & F&O Derivatives Specialization**: Real-time tick ingestion and historical OHLCV data strictly for the NIFTY 50 benchmark index (`^NSEI`) and In-The-Money (ITM) option contracts.
-- 📐 **Institutional Quantitative Strategies**:
-  - **Supertrend + VWAP Strategy**: Specially tuned for NIFTY index volatility and intraday momentum.
-  - **EMA Crossover + MACD Momentum**: 9/21 EMA crossover trend filtering on NIFTY.
-  - **RSI + Bollinger Bands Mean Reversion**: Overbought/oversold bounce detection.
-- 🧠 **Google Gemini AI Reasoning**: Multi-factor signal validation reviewing NIFTY sentiment, ITM option delta protection, and macro catalysts before placing trades.
-- 💼 **Risk-Managed Virtual Portfolio**: Starting capital of **₹30,000 INR**, max 35% margin per trade, strict daily circuit breaker (Max 4 trades/day, ₹2,000 max loss, ₹4,000 profit target).
-- 📱 **Interactive Telegram Bot**: Push notifications exclusively sent upon actual trade execution (no spam on mere scans), plus interactive commands (`/status`, `/portfolio`, `/scan`, `/trades`, `/help`).
-- ⚡ **Real-Time Live Web Dashboard & REST API**: Modern dark glassmorphism interface with live NIFTY spot ticker, interactive candles, F&O strike scanner, on-demand backtesting engine, and manual trade execution.
-- ☁️ **Cloud Ready**: Configured for instant 1-click deployment on **Render** (free/standard tier) and Docker containers.
+- **Multi-Strategy Technical Engine**: EMA Crossovers, VWAP, Supertrend, ADX, Opening Range Breakout (ORB), RSI Divergence, Bollinger Bands.
+- **AI Decision Engine**: Multi-factor scoring (PCR, India VIX, Trend, Greeks) with confidence thresholding (≥ 80%) and plain-English trade explanations.
+- **Risk Management Circuit Breakers**: Daily loss circuit breaker (₹2,000), profit target lock (₹4,000), max trades per day (4), consecutive loss lockout, dynamic position sizer, and trailing stop loss.
+- **Paper & Live Trading Adapter**: Simulation engine with Black-Scholes option pricing (Delta, Gamma, Theta, Vega), bid-ask slippage, and margin checks.
+- **Telegram Notifications**: Real-time alerts for bot startup, trade signals, order fills, risk circuit triggers, and end-of-day reports.
+- **REST API & Live Dashboard**: FastAPI backend with live web dashboard featuring dark glassmorphism design.
+- **Render Ready**: Cloud deployment ready with Docker and `render.yaml`.
 
 ---
 
-## 📁 Project Architecture
+## Quick Start
 
-```
-TradeMind-AI/
-├── app/
-│   ├── config.py                 # Configuration & Indian symbol normalizer
-│   ├── data/
-│   │   └── fetcher.py            # Real-time NSE/BSE live quote & candle fetcher
-│   ├── indicators/
-│   │   └── technical.py          # Vectorized Supertrend, VWAP, RSI, EMA, MACD, BB, ATR
-│   ├── strategies/
-│   │   ├── base.py               # Signal dataclass & BaseStrategy interface
-│   │   ├── supertrend_vwap.py    # Supertrend + VWAP strategy (NSE spec)
-│   │   ├── trend_following.py    # EMA (9/21) + MACD Trend strategy
-│   │   └── rsi_reversal.py       # RSI + Bollinger Bands mean reversion strategy
-│   ├── ai/
-│   │   └── gemini_analyst.py     # Gemini AI signal reasoning & confirmation
-│   ├── portfolio/
-│   │   └── engine.py             # Paper trading engine, risk sizing & INR accounting
-│   ├── database/
-│   │   ├── models.py             # SQLAlchemy models (Trade, Position, SignalLog, Snapshot)
-│   │   └── session.py            # SQLite / PostgreSQL session management
-│   ├── telegram/
-│   │   └── bot.py                # Telegram interactive bot listener & broadcast alerts
-│   ├── scheduler/
-│   │   └── runner.py             # Autonomous market scanning loop
-│   ├── backtesting/
-│   │   └── engine.py             # Quantitative historical backtesting engine
-│   ├── utils/
-│   │   └── logger.py             # Rotating file & console logger
-│   └── api/
-│       └── routes.py             # FastAPI endpoints, health check & Live Dashboard UI
-├── tests/                        # Full test suite (24 passing unit & integration tests)
-├── .env.example                  # Environment configuration template
-├── .gitignore                    # Git security filter (blocks .env and databases)
-├── .dockerignore                 # Docker build ignore rules
-├── Dockerfile                    # Containerization specification
-├── Procfile                      # Process file for Render web service
-├── render.yaml                   # Render Blueprint Infrastructure-as-Code
-├── requirements.txt              # Production Python dependencies
-├── main.py                       # Application runner & background orchestrator
-└── README.md                     # Project documentation
-```
-
----
-
-## 🚀 Quick Start (Local Development)
-
-### 1. Clone & Setup Virtual Environment
-```bash
-# Clone repository
-git clone https://github.com/your-username/TradeMind-AI.git
-cd TradeMind-AI
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-```
-
-### 2. Install Dependencies
+### 1. Installation
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure `.env`
-Copy `.env.example` to `.env`:
+### 2. Run Test Suite
+Execute the full test suite across all 7 phases:
 ```bash
-cp .env.example .env
+python -m pytest tests/ -v
 ```
-Open `.env` and fill in your keys:
-- `TELEGRAM_TOKEN`: (Optional) Bot token from [@BotFather](https://t.me/BotFather)
-- `CHAT_ID`: (Optional) Your Chat ID from [@userinfobot](https://t.me/userinfobot)
-- `GEMINI_API_KEY`: (Optional) Free API key from [Google AI Studio](https://aistudio.google.com/)
 
-### 4. Run Verification & Launch
+### 3. Start REST API & Web Dashboard
 ```bash
-# Verify startup checks
-python main.py --verify
-
-# Launch Web Server, Autonomous Scanner & Telegram Listener
-python main.py
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
-Visit the live interface:
-- **Live Dashboard:** [http://localhost:8000](http://localhost:8000)
-- **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
+Access the Dashboard at: `http://localhost:8000/dashboard`  
+Access API Documentation at: `http://localhost:8000/docs`
 
 ---
 
-## ☁️ Deploying on Render
-
-TradeMind-AI is configured for seamless deployment on **Render** as a Python Web Service.
-
-### Option A: 1-Click / Blueprint Deploy (Recommended)
-1. Push your repository to **GitHub** (see instructions below).
-2. Log in to [Render Dashboard](https://dashboard.render.com/).
-3. Click **New +** -> **Blueprint**.
-4. Connect your GitHub repository.
-5. Render will automatically detect `render.yaml` and set up the build & start commands!
-6. Under **Environment Variables**, provide:
-   - `TELEGRAM_TOKEN`: Your Telegram Bot token.
-   - `CHAT_ID`: Your Telegram Chat ID.
-   - `GEMINI_API_KEY`: Your Google Gemini API Key.
-7. Click **Apply**. Render will build and deploy your live trading engine.
-
-### Option B: Manual Web Service Setup on Render
-1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New +** -> **Web Service**.
-2. Select your `TradeMind-AI` GitHub repository.
-3. Configure the following fields:
-   - **Name**: `trademind-ai`
-   - **Region**: Any (e.g., `Oregon (US West)` or `Frankfurt (EU Central)`)
-   - **Branch**: `main`
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python main.py`
-   - **Plan**: `Free`
-4. Expand **Advanced** -> **Health Check Path**: `/health`
-5. Add Environment Variables:
-   - `ENVIRONMENT` = `production`
-   - `API_HOST` = `0.0.0.0`
-   - `INITIAL_BALANCE` = `2000.0`
-   - `TELEGRAM_TOKEN` = `<your_token>`
-   - `CHAT_ID` = `<your_chat_id>`
-   - `GEMINI_API_KEY` = `<your_gemini_key>`
-6. Click **Create Web Service**.
-
----
-
-## 🐙 Pushing to GitHub
-
-Follow these steps to initialize and push your repository to GitHub:
-
-### 1. Initialize Git (if not already done)
-```bash
-git init
-git branch -M main
+## Project Structure
 ```
-
-### 2. Verify Sensitive Files are Ignored
-```bash
-# Check git status (Verify .env and trademind.db are NOT listed)
-git status
+config/             # Configuration & Pydantic settings loader
+broker/             # Abstract broker interface & paper broker adapter
+market_data/        # yfinance fetcher, indicators & PCR/Max Pain analytics
+strategies/         # Trend following, breakout, reversal & strategy engine
+ai_engine/          # Multi-factor AI confidence scoring & explanations
+risk_management/    # Circuit breakers, dynamic lot sizing & trailing SL
+orders/             # Order execution state machine & trade persistence
+paper_trading/      # Simulator & Black-Scholes option greeks engine
+telegram/           # Telegram bot notification dispatcher
+database/           # SQLAlchemy models & database connection setup
+dashboard/          # Live web dashboard (Dark glassmorphism UI)
+api/                # FastAPI endpoints
+tests/              # Comprehensive test suite (Phases 1 - 7)
 ```
-
-### 3. Stage and Commit Files
-```bash
-git add .
-git commit -m "feat: initial release of TradeMind-AI with Render and NSE live trading support"
-```
-
-### 4. Link Remote Repository and Push
-Create a new repository on [GitHub](https://github.com/new) named `TradeMind-AI`, then run:
-```bash
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/TradeMind-AI.git
-git push -u origin main
-```
-
----
-
-## 🧪 Running Automated Tests
-
-Run the comprehensive 24-test suite covering indicators, strategies, backtesting, database operations, and API endpoints:
-```bash
-pytest tests/ -v
-```
-
----
-
-## 📡 REST API Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | Web Dashboard with Real-Time Stock Tracer & Portfolio View |
-| `GET` | `/health` | Cloud health check & uptime monitor endpoint |
-| `GET` | `/api/status` | System status, version, market status & watchlist |
-| `GET` | `/api/trace/{symbol}` | Real-time live exchange quote, VWAP, Supertrend & RSI metrics |
-| `GET` | `/api/market-data` | Bulk 24h market metrics for NSE watchlist |
-| `GET` | `/api/portfolio` | Virtual portfolio balance, open positions, and PnL in ₹ INR |
-| `GET` | `/api/trades` | Historical executed trade audit log |
-| `GET` | `/api/signals` | Algorithmic strategy & Gemini AI signal log |
-| `POST` | `/api/scan` | Trigger immediate market scan across NSE watchlist |
-| `POST` | `/api/analyze/{symbol}` | Instant multi-indicator + Gemini AI reasoning analysis |
-| `POST` | `/api/backtest` | Quantitative historical backtest on real NSE data |
-| `POST` | `/api/trade/buy` | Manual paper BUY order in ₹ INR |
-| `POST` | `/api/trade/sell` | Manual paper SELL order in ₹ INR |
-
----
-
-## 🛡️ Risk Safeguards & NIFTY Market Rules
- 
-1. **Strict Market Filter**: Only verified NIFTY 50 Index (`^NSEI`, `^NSEBANK`) and standard NIFTY F&O contracts can be analyzed or traded.
-2. **Capital Protection**: ₹30,000 virtual capital with 35% safe margin per trade and 65-unit lot size.
-3. **Daily Circuit Breakers**: Max 4 trades/day, ₹2,000 max daily loss limit, and ₹4,000 daily profit target lock.
-4. **Expiry Day Protection**: Strictly blocks new buy entries on Expiry Day (Tuesday) after 2:00 PM IST to protect against rapid theta decay and gamma spikes.
-5. **Intraday Square-off**: Automated 15:25 IST EOD square-off and pre-market 09:00 IST reconciliation.
-6. **Execution-Only Alerts**: Telegram signals dispatch strictly upon actual order execution by the bot.
-
----
-
-## 📜 License
-MIT License. Built for algorithmic trading research and quantitative analysis.
