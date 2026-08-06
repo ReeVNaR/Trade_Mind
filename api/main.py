@@ -1,7 +1,7 @@
 import os
 import psutil
 import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config.settings import settings
@@ -9,6 +9,8 @@ from broker.paper_broker import PaperBroker
 from risk_management.risk_manager import RiskManager
 from database.connection import init_db, get_db_session
 from database.models import Trade, Order
+from scheduler.live_scanner import LiveMarketScanner
+from telegram.notifier import TelegramNotifier
 from utils.logger import logger
 
 app = FastAPI(
@@ -30,12 +32,20 @@ start_time = datetime.datetime.utcnow()
 broker = PaperBroker(initial_capital=settings.INITIAL_BALANCE)
 broker.connect()
 risk_manager = RiskManager()
+notifier = TelegramNotifier()
+scanner = LiveMarketScanner(broker=broker, risk_manager=risk_manager, notifier=notifier)
 is_trading_paused = False
 
 @app.on_event("startup")
 def startup_event():
     init_db()
-    logger.info("FastAPI Server Started.")
+    scanner.start()
+    logger.info("FastAPI Server Started with Live Market Scanner active.")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scanner.stop()
+    logger.info("FastAPI Server Stopping...")
 
 @app.get("/health")
 def health_check():
@@ -44,8 +54,10 @@ def health_check():
     return {
         "status": "healthy" if not is_trading_paused else "paused",
         "broker_status": "CONNECTED" if broker.connected else "DISCONNECTED",
+        "scanner_status": "RUNNING" if scanner.is_running else "STOPPED",
         "database_status": "HEALTHY",
         "telegram_status": "ACTIVE" if settings.TELEGRAM_TOKEN else "CONSOLE_ONLY",
+        "trading_mode": settings.TRADING_MODE,
         "environment": settings.ENVIRONMENT,
         "uptime_seconds": uptime_seconds
     }
@@ -53,7 +65,9 @@ def health_check():
 @app.get("/api/balance")
 def get_balance():
     """Returns real-time account balance & PnL."""
-    return broker.get_balance()
+    bal = broker.get_balance()
+    bal["trading_mode"] = settings.TRADING_MODE
+    return bal
 
 @app.get("/api/positions")
 def get_positions():
@@ -89,18 +103,35 @@ def get_trades(limit: int = 50):
 
 @app.get("/api/system-status")
 def get_system_status():
-    """Returns CPU, RAM, and server stats."""
+    """Returns CPU, RAM, scanner, and server stats."""
     process = psutil.Process(os.getpid())
     return {
         "cpu_percent": psutil.cpu_percent(interval=None),
         "ram_mb": round(process.memory_info().rss / (1024 * 1024), 2),
-        "trading_paused": is_trading_paused
+        "trading_paused": is_trading_paused,
+        "scanner_running": scanner.is_running,
+        "last_scan_time": scanner.last_scan_time,
+        "last_signal": scanner.last_signal,
+        "trading_mode": settings.TRADING_MODE
     }
+
+@app.post("/api/scan")
+def trigger_manual_scan():
+    """Triggers an immediate market scan cycle on real NIFTY data."""
+    summary = scanner.run_single_scan()
+    return {"status": "completed", "summary": summary}
+
+@app.post("/api/test-telegram")
+def test_telegram():
+    """Triggers an instant test Telegram notification to user's phone."""
+    success = notifier.send_message_sync("🧪 *TradeMind-AI Telegram Connection Test*\n\nReal-time market scanner is active!")
+    return {"success": success, "message": "Telegram notification dispatched." if success else "Check Telegram credentials."}
 
 @app.post("/api/pause")
 def pause_trading():
     global is_trading_paused
     is_trading_paused = True
+    scanner.stop()
     logger.info("Trading PAUSED by API request.")
     return {"status": "paused", "message": "Trading paused successfully."}
 
@@ -108,6 +139,7 @@ def pause_trading():
 def resume_trading():
     global is_trading_paused
     is_trading_paused = False
+    scanner.start()
     logger.info("Trading RESUMED by API request.")
     return {"status": "active", "message": "Trading resumed successfully."}
 

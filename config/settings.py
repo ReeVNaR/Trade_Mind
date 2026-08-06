@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     TELEGRAM_TOKEN: Optional[str] = None
     CHAT_ID: Optional[str] = None
 
+    # Trading Mode (PAPER / LIVE)
+    TRADING_MODE: str = "PAPER"
+
     # Account & Capital
     INITIAL_BALANCE: float = 30000.0
     MAX_POSITION_SIZE_RATIO: float = 0.35

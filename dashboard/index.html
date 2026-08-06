@@ -82,7 +82,7 @@
         .controls {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .badge {
@@ -122,13 +122,22 @@
         }
 
         .btn-toggle {
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 12px;
             border: none;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all 0.2s ease;
+        }
+
+        .btn-action {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            border: 1px solid var(--border-card);
+        }
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.15);
         }
 
         .btn-pause {
@@ -255,14 +264,16 @@
             <div class="brand-logo">TM</div>
             <div class="brand-title">
                 <h1>TradeMind-AI Bot</h1>
-                <p>NIFTY F&O Production Dashboard</p>
+                <p>NIFTY F&O Real-Time Trading Center</p>
             </div>
         </div>
 
         <div class="controls">
-            <div class="badge badge-paper">
-                <span class="pulse-dot"></span> PAPER TRADING
+            <div class="badge badge-live">
+                <span class="pulse-dot"></span> REAL MARKET DATA ACTIVE
             </div>
+            <button class="btn-toggle btn-action" onclick="triggerManualScan()">⚡ Scan Now</button>
+            <button class="btn-toggle btn-action" onclick="testTelegramNotification()">📲 Test Telegram Alert</button>
             <button id="btnPauseResume" class="btn-toggle btn-pause" onclick="toggleTrading()">Pause Trading</button>
         </div>
     </div>
@@ -282,7 +293,7 @@
             <div class="stat-value text-blue" id="valMargin">₹30,000.00</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">NIFTY Spot LTP</div>
+            <div class="stat-label">NIFTY 50 Live Spot</div>
             <div class="stat-value" id="valNiftyLtp">22,500.00</div>
         </div>
     </div>
@@ -313,25 +324,25 @@
                 </table>
             </div>
 
-            <!-- Recent Executed Orders -->
+            <!-- Trade History -->
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">Recent Orders</div>
+                    <div class="card-title">Executed Trade Log</div>
                 </div>
                 <table>
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Order ID</th>
+                            <th>Trade ID</th>
                             <th>Symbol</th>
-                            <th>Type</th>
-                            <th>Price</th>
-                            <th>Status</th>
+                            <th>Direction</th>
+                            <th>Entry / Exit</th>
+                            <th>PnL</th>
                         </tr>
                     </thead>
-                    <tbody id="tblOrders">
+                    <tbody id="tblTrades">
                         <tr>
-                            <td colspan="6" style="text-align:center; color: var(--text-secondary);">No orders executed today</td>
+                            <td colspan="6" style="text-align:center; color: var(--text-secondary);">No trades recorded today</td>
                         </tr>
                     </tbody>
                 </table>
@@ -339,43 +350,40 @@
         </div>
 
         <div>
-            <!-- AI Signals Feed -->
+            <!-- Real-Time AI Decision Stream -->
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">AI Decision Signal Feed</div>
+                    <div class="card-title">Real-Time AI Signal Feed</div>
                 </div>
                 <div id="aiFeed">
                     <div class="feed-item">
-                        <strong>AI Engine Initialized</strong><br>
-                        Scanning NIFTY F&O universe (EMA Crossover, VWAP, PCR, VIX). Threshold: 80%
+                        <strong>🤖 AI Decision Engine Active</strong><br>
+                        Fetching real NIFTY spot & VIX data from Yahoo Finance.<br>
+                        Scanning EMA (9/20), VWAP, PCR, Supertrend, ADX.
                     </div>
                 </div>
             </div>
 
-            <!-- System Health -->
+            <!-- System Status -->
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">System Health & Render Status</div>
+                    <div class="card-title">System Status</div>
                 </div>
                 <div class="system-bar">
-                    <span>CPU Usage</span>
-                    <strong id="valCpu">3.2%</strong>
+                    <span>Market Scanner Worker</span>
+                    <strong class="text-green" id="valScanner">RUNNING</strong>
                 </div>
                 <div class="system-bar">
-                    <span>RAM Usage</span>
-                    <strong id="valRam">145 MB</strong>
+                    <span>Last Scan Timestamp</span>
+                    <strong id="valLastScan">Just now</strong>
                 </div>
                 <div class="system-bar">
-                    <span>Broker Connection</span>
-                    <strong class="text-green">CONNECTED</strong>
+                    <span>Telegram Notifications</span>
+                    <strong class="text-green">ONLINE</strong>
                 </div>
                 <div class="system-bar">
-                    <span>Telegram Alerting</span>
-                    <strong class="text-green">ACTIVE</strong>
-                </div>
-                <div class="system-bar">
-                    <span>Uptime</span>
-                    <strong id="valUptime">0h 15m</strong>
+                    <span>CPU / RAM</span>
+                    <strong id="valCpuRam">2.8% / 140 MB</strong>
                 </div>
             </div>
         </div>
@@ -386,9 +394,10 @@
 
         async function fetchDashboardData() {
             try {
-                const res = await fetch('/api/balance');
-                if (res.ok) {
-                    const data = await res.json();
+                // Fetch Balance
+                const resBal = await fetch('/api/balance');
+                if (resBal.ok) {
+                    const data = await resBal.json();
                     document.getElementById('valCapital').innerText = '₹' + data.total_portfolio_value.toLocaleString('en-IN', {minimumFractionDigits: 2});
                     const pnlElem = document.getElementById('valPnL');
                     const pnlVal = data.realized_pnl;
@@ -396,8 +405,63 @@
                     pnlElem.className = 'stat-value ' + (pnlVal >= 0 ? 'text-green' : 'text-red');
                     document.getElementById('valMargin').innerText = '₹' + data.available_margin.toLocaleString('en-IN', {minimumFractionDigits: 2});
                 }
+
+                // Fetch System & Scanner status
+                const resSys = await fetch('/api/system-status');
+                if (resSys.ok) {
+                    const sys = await resSys.json();
+                    document.getElementById('valCpuRam').innerText = sys.cpu_percent + '% / ' + sys.ram_mb + ' MB';
+                    document.getElementById('valScanner').innerText = sys.scanner_running ? 'RUNNING' : 'PAUSED';
+                    document.getElementById('valLastScan').innerText = sys.last_scan_time || 'Scanning...';
+                }
+
+                // Fetch Positions
+                const resPos = await fetch('/api/positions');
+                if (resPos.ok) {
+                    const positions = await resPos.json();
+                    const tbody = document.getElementById('tblPositions');
+                    if (positions.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">No active positions</td></tr>';
+                    } else {
+                        tbody.innerHTML = positions.map(p => `
+                            <tr>
+                                <td><strong>${p.symbol}</strong></td>
+                                <td>${p.quantity}</td>
+                                <td>₹${p.average_price.toFixed(2)}</td>
+                                <td>₹${p.ltp.toFixed(2)}</td>
+                                <td class="${p.unrealized_pnl >= 0 ? 'text-green' : 'text-red'}"><strong>${p.unrealized_pnl >= 0 ? '+' : ''}₹${p.unrealized_pnl.toFixed(2)}</strong></td>
+                            </tr>
+                        `).join('');
+                    }
+                }
             } catch (err) {
                 console.error("Dashboard update error:", err);
+            }
+        }
+
+        async function triggerManualScan() {
+            const btn = event.target;
+            btn.innerText = '⏳ Scanning...';
+            try {
+                const res = await fetch('/api/scan', {method: 'POST'});
+                const data = await res.json();
+                if (data.summary && data.summary.spot_price) {
+                    document.getElementById('valNiftyLtp').innerText = data.summary.spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                }
+            } catch (err) {
+                console.error("Scan error:", err);
+            }
+            btn.innerText = '⚡ Scan Now';
+            fetchDashboardData();
+        }
+
+        async function testTelegramNotification() {
+            try {
+                const res = await fetch('/api/test-telegram', {method: 'POST'});
+                const data = await res.json();
+                alert(data.message || "Telegram notification dispatched!");
+            } catch (err) {
+                alert("Failed to send Telegram test notification.");
             }
         }
 
@@ -414,6 +478,7 @@
                 btn.className = 'btn-toggle btn-pause';
                 isTradingPaused = false;
             }
+            fetchDashboardData();
         }
 
         setInterval(fetchDashboardData, 3000);

@@ -15,44 +15,61 @@ class MarketDataFetcher:
         self.symbol = symbol
 
     def get_historical_candles(self, period: str = "5d", interval: str = "5m") -> pd.DataFrame:
-        """Fetches OHLCV historical candles using yfinance."""
+        """Fetches real OHLCV historical candles using yfinance for NIFTY 50."""
         try:
             ticker = yf.Ticker(self.symbol)
             df = ticker.history(period=period, interval=interval)
-            if df.empty:
-                logger.warning(f"Empty data received for {self.symbol}. Generating mock candles.")
-                return self.generate_mock_candles()
+            if df.empty or len(df) < 5:
+                logger.warning(f"Insufficient live candle data for {self.symbol}. Retrying with 1d interval.")
+                df = ticker.history(period="1mo", interval="1d")
 
-            df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-            df = TechnicalIndicators.calculate_all(df)
-            return df
+            if not df.empty:
+                # Keep standard columns
+                cols = [c for c in ['Open', 'High', 'Low', 'Close', 'Volume'] if c in df.columns]
+                df = df[cols]
+                df = TechnicalIndicators.calculate_all(df)
+                return df
+            
+            logger.warning(f"No yfinance data for {self.symbol}. Using fallback generator.")
+            return self.generate_mock_candles()
         except Exception as e:
             logger.error(f"Error fetching yfinance candles for {self.symbol}: {e}")
             return self.generate_mock_candles()
 
     def get_live_quote(self) -> Dict[str, Any]:
-        """Fetches real-time LTP and VIX."""
+        """Fetches real-time NIFTY spot LTP and India VIX from Yahoo Finance."""
         try:
             ticker = yf.Ticker(self.symbol)
             fast_info = ticker.fast_info
             ltp = fast_info.get("lastPrice", 0.0)
-            if ltp == 0.0:
+            
+            if not ltp or ltp <= 0.0:
                 df = ticker.history(period="1d", interval="1m")
                 if not df.empty:
                     ltp = float(df['Close'].iloc[-1])
                 else:
                     ltp = 22500.0
-            
-            # Fetch VIX
-            vix_ticker = yf.Ticker("^INDIAVIX")
-            vix_info = vix_ticker.fast_info
-            vix = vix_info.get("lastPrice", 14.5)
+
+            # Fetch India VIX
+            vix = 14.5
+            try:
+                vix_ticker = yf.Ticker("^INDIAVIX")
+                vix_fast = vix_ticker.fast_info
+                vix_val = vix_fast.get("lastPrice", 0.0)
+                if vix_val and vix_val > 0:
+                    vix = float(vix_val)
+                else:
+                    vix_df = vix_ticker.history(period="1d", interval="1m")
+                    if not vix_df.empty:
+                        vix = float(vix_df['Close'].iloc[-1])
+            except Exception as e_vix:
+                logger.debug(f"Could not fetch VIX live, using default 14.5: {e_vix}")
 
             return {
                 "symbol": self.symbol,
                 "ltp": round(float(ltp), 2),
-                "vix": round(float(vix or 14.5), 2),
-                "timestamp": datetime.datetime.utcnow().isoformat()
+                "vix": round(float(vix), 2),
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
         except Exception as e:
             logger.error(f"Error fetching live quote: {e}")
@@ -60,7 +77,7 @@ class MarketDataFetcher:
                 "symbol": self.symbol,
                 "ltp": 22500.0,
                 "vix": 14.5,
-                "timestamp": datetime.datetime.utcnow().isoformat()
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
 
     def generate_mock_candles(self, count: int = 100, base_price: float = 22500.0) -> pd.DataFrame:
